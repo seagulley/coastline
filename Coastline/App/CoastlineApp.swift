@@ -16,7 +16,7 @@ struct CoastlineApp: App {
         }
         let model = AppModel(
             store: store,
-            engine: UnimplementedProjectionEngine(),
+            engine: PlanProjectionEngine(),
             storageProblem: storageProblem
         )
         _model = State(initialValue: model)

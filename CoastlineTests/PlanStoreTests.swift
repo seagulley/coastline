@@ -187,7 +187,8 @@ private func samplePlan() -> UserPlan {
             mode: .everyMonth,
             loanShare: planDecimal("0.4"),
             chosenAt: Date(timeIntervalSince1970: 1_700_000_000)
-        )
+        ),
+        budget: .empty
     )
 }
 

@@ -51,6 +51,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A20000000000000000000003 /* CoastlineEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -101,6 +102,9 @@
 				A10000000000000000000004 /* Coastline */,
 			);
 			name = Coastline;
+			packageProductDependencies = (
+				A20000000000000000000002 /* CoastlineEngine */,
+			);
 			productName = Coastline;
 			productReference = A10000000000000000000008 /* Coastline.app */;
 			productType = "com.apple.product-type.application";
@@ -153,6 +157,9 @@
 			);
 			mainGroup = A10000000000000000000006;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A20000000000000000000001 /* XCLocalSwiftPackageReference "Engine" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A10000000000000000000007 /* Products */;
 			projectDirPath = "";
@@ -198,6 +205,13 @@
 			targetProxy = A10000000000000000000010 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXBuildFile section */
+		A20000000000000000000003 /* CoastlineEngine in Frameworks */ = {
+			isa = PBXBuildFile;
+			productRef = A20000000000000000000002 /* CoastlineEngine */;
+		};
+/* End PBXBuildFile section */
 
 /* Begin XCBuildConfiguration section */
 		A10000000000000000000012 /* Debug */ = {
@@ -440,6 +454,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A20000000000000000000001 /* XCLocalSwiftPackageReference "Engine" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Engine;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A20000000000000000000002 /* CoastlineEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A20000000000000000000001 /* XCLocalSwiftPackageReference "Engine" */;
+			productName = CoastlineEngine;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A10000000000000000000001 /* Project object */;
 }

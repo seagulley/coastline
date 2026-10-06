@@ -11,6 +11,8 @@ struct UserPlan: Codable, Equatable, Sendable {
     var assumptions: Assumptions
     /// Set only after the user picks a split. Nil while a projection is still a suggestion.
     var chosenPlan: ChosenPlan?
+    /// Current budget proportions. Used when a loan payoff frees a payment.
+    var budget: PlanBudget
 
     static let empty = UserPlan(
         loans: [],
@@ -24,7 +26,8 @@ struct UserPlan: Codable, Equatable, Sendable {
             withdrawalRate: nil
         ),
         assumptions: .defaults,
-        chosenPlan: nil
+        chosenPlan: nil,
+        budget: .empty
     )
 }
 
@@ -48,6 +51,7 @@ struct Loan: Codable, Equatable, Identifiable, Sendable {
 
     enum InterestMethod: String, Codable, Sendable {
         case dailyAccrualMonthlyApplication
+        case monthlyNominal
     }
 }
 
@@ -138,6 +142,26 @@ struct CalendarDate: Codable, Equatable, Hashable, Sendable {
     var year: Int
     var month: Int
     var day: Int
+}
+
+struct PlanBudget: Codable, Equatable, Sendable {
+    var categories: [PlanBudgetCategory]
+    var emergencyFundIsFull: Bool
+
+    static let empty = PlanBudget(categories: [], emergencyFundIsFull: true)
+}
+
+struct PlanBudgetCategory: Codable, Equatable, Sendable {
+    enum Role: String, Codable, Sendable {
+        case needs
+        case emergencyFund
+        case extraLoanPayment
+        case investing
+        case other
+    }
+
+    var amount: Decimal
+    var role: Role
 }
 
 func planDecimal(_ literal: String) -> Decimal {

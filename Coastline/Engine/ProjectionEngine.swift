@@ -1,7 +1,6 @@
 import Foundation
 
-/// The only way a screen obtains a projection. Implementations do the financial math.
-/// The scaffold ships a stand-in that returns no scenarios.
+/// The only way a screen obtains a projection. `PlanProjectionEngine` does the financial math.
 protocol ProjectionEngine {
     func project(_ plan: UserPlan) -> Projection
 }
@@ -15,6 +14,7 @@ struct Projection: Equatable, Sendable {
 struct ScenarioProjection: Equatable, Sendable {
     var scenario: ReturnScenario
     var coastFireDate: CalendarDate?
+    var coastFireDateIfFreedMoneyInvested: CalendarDate?
     var loanPayoffDate: CalendarDate?
     var totalInterestPaid: Decimal?
     var months: [MonthRecord]
@@ -22,12 +22,14 @@ struct ScenarioProjection: Equatable, Sendable {
     init(
         scenario: ReturnScenario,
         coastFireDate: CalendarDate? = nil,
+        coastFireDateIfFreedMoneyInvested: CalendarDate? = nil,
         loanPayoffDate: CalendarDate? = nil,
         totalInterestPaid: Decimal? = nil,
         months: [MonthRecord] = []
     ) {
         self.scenario = scenario
         self.coastFireDate = coastFireDate
+        self.coastFireDateIfFreedMoneyInvested = coastFireDateIfFreedMoneyInvested
         self.loanPayoffDate = loanPayoffDate
         self.totalInterestPaid = totalInterestPaid
         self.months = months

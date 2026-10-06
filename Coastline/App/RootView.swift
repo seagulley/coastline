@@ -50,6 +50,12 @@ private struct ProjectionSummary: View {
                 LabeledContent("Coast FIRE") {
                     Text(scenario.coastFireDate.map(PlanFormatting.monthAndYear) ?? "Not reached")
                 }
+                if let investedFreedPayments = scenario.coastFireDateIfFreedMoneyInvested,
+                   investedFreedPayments != scenario.coastFireDate {
+                    LabeledContent("If freed payments are invested") {
+                        Text(PlanFormatting.monthAndYear(investedFreedPayments))
+                    }
+                }
                 LabeledContent("Loan payoff") {
                     Text(scenario.loanPayoffDate.map(PlanFormatting.monthAndYear) ?? "Not reached")
                 }
