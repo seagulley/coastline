@@ -1,8 +1,10 @@
-# Design: Coastline (working name)
+# Design: Coastline
 
 Personal iOS app that recommends the best money move (pay debt vs. invest) and shows the possible futures behind each choice, measured by Coast FIRE date.
 
 Single user. No accounts. All data stored on device.
+
+The name on the Home screen and under the app icon is Coastline.
 
 ---
 
@@ -94,7 +96,7 @@ Single user. No accounts. All data stored on device.
 - **Split:** % to extra loan payment vs. investing
 - **Investments:** current balance, fund type (for fees)
 - **Coast FIRE goal:** current age, retirement age, yearly retirement spending (today's dollars), withdrawal rate
-- **Assumptions:** good/typical/bad annual return, inflation, prime rate
+- **Assumptions:** good/typical/bad annual return (defaults 3% / 6.5% / 10%), inflation, prime rate
 
 ### Outputs (per option, per scenario)
 - Month-by-month: loan balances, investment balance, net worth, cumulative interest paid
@@ -143,6 +145,11 @@ Coast FIRE reached when invested balance (today's dollars) >= coastNumber
 
 ### Scenarios (MVP)
 - Fixed annual returns: good / typical / bad (user-configurable settings).
+- Defaults, used when the user has not set a rate: bad **3%**, typical **6.5%**, good **10%**.
+- The rates are compound nominal annual returns, before fees. Fees stay a separate assumption. The monthly step applies the nominal rate, and the Coast FIRE check converts it to a real return.
+- Source: the 2026 Projection Assumption Guidelines from FP Canada and the Institute of Financial Planning (nominal returns, before fees).
+  - Typical, 6.5%, is the midpoint of the developed-equity assumptions: Canadian equities 6.3%, U.S. equities 6.4%, international developed-market equities 6.6%.
+  - Those guidelines put the historical equity risk premium at 3.2 percentage points for U.S. equities. Bad is that premium failing to arrive: 6.5% − 3.2% = 3.3%, rounded to 3%, about the fixed-income assumption of 3.2%. Good is the premium arriving on top of typical: 6.5% + 3.2% = 9.7%, rounded to 10%.
 - Each option is simulated once per scenario.
 - Must be swappable later for Monte Carlo or historical replay without UI changes. If Monte Carlo is added, use a fixed random seed so results don't jitter as the slider moves.
 
@@ -155,7 +162,7 @@ Coast FIRE reached when invested balance (today's dollars) >= coastNumber
 5. recommend = allowed candidate with the earliest typical Coast FIRE date
 6. Tiebreak: prefer the higher loan share (guaranteed return)
 ```
-- `riskTolerance` is a user setting (in months).
+- `riskTolerance` is a user setting, in months. The default is 12. A candidate stays eligible when its bad-case Coast FIRE date is at most 12 months later than the safest option.
 - The reason text is generated from the comparison, e.g. "Reaches Coast FIRE 5 months sooner in a typical market, and only 2 months behind the safest option in a bad market."
 
 ---
@@ -183,7 +190,4 @@ Coast FIRE reached when invested balance (today's dollars) >= coastNumber
 ---
 
 ## Open questions
-- Default values for good / typical / bad return rates
-- Default risk tolerance (months)
 - Whether money returned after a rate drop follows the same flex order or a separate list
-- Display name for the app
