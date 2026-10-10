@@ -56,10 +56,14 @@ public struct MonthSnapshot: Hashable, Sendable {
 public struct LoanPayoff: Hashable, Sendable {
     public var id: UUID
     public var month: YearMonth
+    /// The loan's monthly minimum payment, which is free once the loan is repaid. The statement amount, or the
+    /// estimate from the repayment term. Payments are flat, so this is the nominal amount due in `month`.
+    public var payment: Decimal
 
-    public init(id: UUID, month: YearMonth) {
+    public init(id: UUID, month: YearMonth, payment: Decimal) {
         self.id = id
         self.month = month
+        self.payment = payment
     }
 }
 
@@ -81,7 +85,7 @@ public struct ProjectionResult: Hashable, Sendable {
     /// Month 0, then one snapshot per simulated month through retirement.
     public var months: [MonthSnapshot]
     /// First month the invested balance, in today's dollars, reaches the Coast FIRE number.
-    /// Freed loan payments follow the chosen split, or the suggested split until the user chooses.
+    /// Each freed loan payment follows the user's answer for that loan, or the suggested split until the user answers.
     public var coastFireDate: YearMonth?
     /// Same projection, except every freed loan payment is invested. Informational.
     public var coastFireDateIfFreedMoneyInvested: YearMonth?

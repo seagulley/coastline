@@ -55,6 +55,15 @@ public enum CoastFireMath {
     }
 }
 
+public enum Allocation {
+    /// Splits `amount` into the extra loan payment and the investing amount. Rounding stays inside `amount`.
+    public static func split(_ amount: Decimal, loanShare: Decimal) -> (loans: Decimal, investing: Decimal) {
+        let amount = Cents.round(max(amount, 0))
+        let loans = Cents.round(amount * min(max(loanShare, 0), 1))
+        return (loans, amount - loans)
+    }
+}
+
 public enum MinimumPayment {
     /// Standard amortizing payment from the current balance, nominal annual rate, and remaining term.
     public static func estimate(balance: Decimal, annualRate: Decimal, termMonths: Int) -> Decimal {

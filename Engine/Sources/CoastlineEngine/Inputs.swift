@@ -213,8 +213,8 @@ public struct ProjectionInput: Hashable, Sendable {
     public var scenario: ProjectionScenario
     /// Current budget, used only to split a loan payment once that loan is paid off.
     public var budget: Budget
-    /// The user's split for freed loan payments. Nil until the user chooses; the projection then uses the split suggested from `budget`.
-    public var chosenFreedMoneySplit: FreedMoneySplit?
+    /// The user's answer at payoff, by loan ID. A loan with no answer uses the split suggested from `budget`.
+    public var freedPaymentAnswers: [UUID: FreedPaymentAnswer]
 
     public init(
         start: YearMonth,
@@ -228,7 +228,7 @@ public struct ProjectionInput: Hashable, Sendable {
         assumptions: Assumptions,
         scenario: ProjectionScenario,
         budget: Budget = Budget(),
-        chosenFreedMoneySplit: FreedMoneySplit? = nil
+        freedPaymentAnswers: [UUID: FreedPaymentAnswer] = [:]
     ) {
         self.start = start
         self.loans = loans
@@ -241,7 +241,7 @@ public struct ProjectionInput: Hashable, Sendable {
         self.assumptions = assumptions
         self.scenario = scenario
         self.budget = budget
-        self.chosenFreedMoneySplit = chosenFreedMoneySplit
+        self.freedPaymentAnswers = freedPaymentAnswers
     }
 
     /// Fee subtracted from the scenario return for monthly growth and for the Coast FIRE check:
@@ -264,4 +264,12 @@ public struct ProjectionInput: Hashable, Sendable {
         }
         return input
     }
+}
+
+/// What the user does with a loan's payment once that loan is paid off.
+public enum FreedPaymentAnswer: Hashable, Sendable {
+    /// The whole freed payment is added to monthly investing.
+    case invest
+    /// The freed payment leaves the projection, as if spent.
+    case keep
 }

@@ -20,6 +20,8 @@ struct NominalSimulator {
         var interestMethod: InterestMethod
         var order: Int
         var countsTowardPayoff: Bool
+        /// Where this loan's minimum payment goes once the loan is repaid.
+        var freedShares: FreedShares
     }
 
     private var loans: [LoanState]
@@ -32,7 +34,6 @@ struct NominalSimulator {
     private let inflation: Decimal
     private let primeRate: Decimal
     private let growthFactor: Decimal
-    private let freedShares: FreedShares
     private let horizonMonths: Int
 
     private var recurringLoanExtra: Decimal = 0
@@ -51,7 +52,6 @@ struct NominalSimulator {
         inflation: Decimal,
         primeRate: Decimal,
         growthFactor: Decimal,
-        freedShares: FreedShares,
         horizonMonths: Int
     ) {
         self.start = start
@@ -63,7 +63,6 @@ struct NominalSimulator {
         self.inflation = inflation
         self.primeRate = primeRate
         self.growthFactor = growthFactor
-        self.freedShares = freedShares
         self.horizonMonths = max(horizonMonths, 0)
 
         var lumps: [YearMonth: [LumpSum]] = [:]
@@ -111,7 +110,7 @@ struct NominalSimulator {
 
         // 3. Money arrives. Investing rises with inflation; the loan slice and lump sums stay nominal.
         let elapsedMonths = monthIndex - 1
-        let (monthlyLoan, monthlyInvest) = split(monthlyAmount, loanShare: loanShare)
+        let (monthlyLoan, monthlyInvest) = Allocation.split(monthlyAmount, loanShare: loanShare)
         let investScale = contributionsGrowWithInflation
             ? TodayDollars.inflationFactor(inflation: inflation, monthIndex: elapsedMonths)
             : Decimal(1)
@@ -120,8 +119,8 @@ struct NominalSimulator {
         var freedExtra = recurringLoanExtra
 
         for lump in lumpsByMonth[month] ?? [] {
-            let share = lump.loanShare.map { min(max($0, 0), 1) } ?? loanShare
-            let (lumpLoan, lumpInvest) = split(lump.amount, loanShare: share)
+            let share = lump.loanShare ?? loanShare
+            let (lumpLoan, lumpInvest) = Allocation.split(lump.amount, loanShare: share)
             userExtra = Cents.round(userExtra + lumpLoan)
             investPool = Cents.round(investPool + lumpInvest)
         }
@@ -133,7 +132,7 @@ struct NominalSimulator {
             let paid = pay(min(minimum, due), at: index)
             if loans[index].balance == 0 {
                 let unused = Cents.round(minimum - paid)
-                let freed = freedShares.allocate(unused)
+                let freed = loans[index].freedShares.allocate(unused)
                 freedExtra = Cents.round(freedExtra + freed.loans)
                 investPool = Cents.round(investPool + freed.investing)
             }
@@ -153,7 +152,7 @@ struct NominalSimulator {
                 payoffMonthIndex[loan.id] = monthIndex
             }
             guard !freedLoanIDs.contains(loan.id) else { continue }
-            let freed = freedShares.allocate(loan.minimumPayment)
+            let freed = loan.freedShares.allocate(loan.minimumPayment)
             recurringLoanExtra = Cents.round(recurringLoanExtra + freed.loans)
             recurringInvest = Cents.round(recurringInvest + freed.investing)
             freedLoanIDs.insert(loan.id)
@@ -169,12 +168,6 @@ struct NominalSimulator {
         case .monthlyNominal:
             return Cents.round(loan.balance * loan.annualRate / 12)
         }
-    }
-
-    private func split(_ amount: Decimal, loanShare: Decimal) -> (loans: Decimal, investing: Decimal) {
-        let amount = Cents.round(max(amount, 0))
-        let loans = Cents.round(amount * loanShare)
-        return (loans, amount - loans)
     }
 
     /// Pays loans highest rate first. Returns what is left once every loan is repaid.
