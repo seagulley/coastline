@@ -24,7 +24,7 @@ The name on the Home screen and under the app icon is Coastline.
 3. **Coast FIRE date is the unit of value.** Every option shows how it moves the Coast FIRE date.
 4. **The engine does all math.** UI (and later a chatbot) only call the engine and display results. No financial math in views.
 5. **Display in today's dollars.**
-6. **Explain assumptions.** Settings and assumptions get a short plain-language ⓘ explanation.
+6. **Explain assumptions.** Settings and assumptions get a short plain-language ⓘ explanation. Draft copy is in `assumption-explanations.md`; wire it when Setup and Change assumptions exist.
 
 ---
 
@@ -45,7 +45,7 @@ The name on the Home screen and under the app icon is Coastline.
 - Priority profile and flex rules
 - Travel fund
 - Chatbot (calls the engine; never does math itself)
-- Notifications
+- Notifications (including a push for the loan-payoff Coming up item)
 
 ### Later
 - Monte Carlo or historical replay scenarios (engine swap, no UI changes)
@@ -67,6 +67,10 @@ The name on the Home screen and under the app icon is Coastline.
 ### Home
 - Primary: Coast FIRE date (e.g. "November 2033"), with "about X years" and likely range below.
 - "Coming up" section: only shown when something needs attention (e.g. "Decide on bonus by April 2027").
+- Loan payoff: in a loan's projected payoff month, Coming up shows "Your [loan] should be paid off in [month]. Its $X payment is free." Tapping it opens a sheet with two options, each with its Coast FIRE date and good–bad range:
+  - **Invest it:** the freed payment is added to monthly investing.
+  - **Keep it:** the freed payment leaves the projection, as if spent.
+  - Actions: I'll invest it, I'll keep it, Not paid off yet. Nothing changes until the user taps one. Not paid off yet hides the item until next month.
 - Current monthly split (extra to loan / investing) with Adjust button.
 
 ### Compare
@@ -79,12 +83,13 @@ The name on the Home screen and under the app icon is Coastline.
 
 ### Change assumptions (sheet over Compare)
 - Good / typical / bad return rates, prime rate, inflation, fees.
+- Fee starts at the fund-type default (e.g. "0.20%, index ETF default"). The user can override it and reset it to the default.
 - Shows break-even: "Paying the loan wins if markets return less than X% a year."
 
 ### After choosing
 - Checklist of concrete steps (e.g. loan payment amount, amount to put in TFSA).
 - Shows Coast FIRE date change (before → after).
-- Fee assumption depends on fund type (index ETF vs. mutual fund).
+- Fee assumption is the fund-type default (index ETF vs. mutual fund) unless the user set one.
 
 ---
 
@@ -94,9 +99,10 @@ The name on the Home screen and under the app icon is Coastline.
 - **Loans** (per loan): balance, disbursed before/after July 1 2023, rate type (floating/fixed), rate, interest start date, minimum payment, interest method
 - **Money:** monthly amount to allocate, lump sums (amount + month)
 - **Split:** % to extra loan payment vs. investing
-- **Investments:** current balance, fund type (for fees)
+- **Investments:** current balance, fund type (sets the default fee)
 - **Coast FIRE goal:** current age, retirement age, yearly retirement spending (today's dollars), withdrawal rate
-- **Assumptions:** good/typical/bad annual return (defaults 3% / 6.5% / 10%), inflation, prime rate
+- **Assumptions:** good/typical/bad annual return (defaults 3% / 6.5% / 10%), inflation, prime rate, annual fee (default from fund type: index ETF **0.20%**, mutual fund **2.00%**)
+- **Freed payments:** per loan, the user's answer at payoff (invest it / keep it). None until the user answers.
 
 ### Outputs (per option, per scenario)
 - Month-by-month: loan balances, investment balance, net worth, cumulative interest paid
@@ -132,7 +138,10 @@ for each month:
 - **Future prime rate:** held constant at the current value (MVP).
 - **Minimum payment:** user-entered from statement; estimated from balance and repayment term until available.
 - **Interest method:** configurable per loan; default = daily accrual, monthly application.
-- **Loan payoff:** the priority profile is not in the MVP. Freed payment is suggested in proportion to the current budget (excluding needs, and excluding the emergency fund if it is full). Projections use the suggested split until the user chooses. Also show the Coast FIRE date if all freed money goes to investing (informational, not pressure).
+- **Loan payoff:** the priority profile is not in the MVP. Freed payment is suggested in proportion to the current budget (excluding needs, and excluding the emergency fund if it is full). With no budget, which is every MVP plan until CashOnly (Later), the suggestion is to invest all of it. Setup does not ask for a budget.
+  - Projections use the suggested split for each loan until the user answers at payoff (Home, Coming up). "Invest it" sends the whole freed payment to investing. "Keep it" sends none of it to loans or investing, so it leaves the projection.
+  - Once no loan is left, any money still headed to loans (the extra-to-loan slice, the loan slice of a lump sum, or a loan share of freed payments) is invested instead of dropped.
+  - The engine reports the Coast FIRE date for both answers, so the payoff sheet can show them side by side.
 
 ### Coast FIRE math
 ```
@@ -141,17 +150,24 @@ fireNumber  = yearlySpending / withdrawalRate                 (today's dollars)
 coastNumber = fireNumber / (1 + realReturn) ^ yearsLeft
 Coast FIRE reached when invested balance (today's dollars) >= coastNumber
 ```
-`nominalReturn` is that scenario's annual return. `yearsLeft` is the time remaining until retirement in the month being checked.
+`nominalReturn` is that scenario's annual return minus the annual fee, the same return the monthly step grows the balance at. `yearsLeft` is the time remaining until retirement in the month being checked.
 
 ### Scenarios (MVP)
 - Fixed annual returns: good / typical / bad (user-configurable settings).
 - Defaults, used when the user has not set a rate: bad **3%**, typical **6.5%**, good **10%**.
-- The rates are compound nominal annual returns, before fees. Fees stay a separate assumption. The monthly step applies the nominal rate, and the Coast FIRE check converts it to a real return.
+- The rates are compound nominal annual returns, before fees. Fees stay a separate assumption. The monthly step and the Coast FIRE check both subtract the fee from the rate; the check then converts it to a real return.
 - Source: the 2026 Projection Assumption Guidelines from FP Canada and the Institute of Financial Planning (nominal returns, before fees).
   - Typical, 6.5%, is the midpoint of the developed-equity assumptions: Canadian equities 6.3%, U.S. equities 6.4%, international developed-market equities 6.6%.
   - Those guidelines put the historical equity risk premium at 3.2 percentage points for U.S. equities. Bad is that premium failing to arrive: 6.5% − 3.2% = 3.3%, rounded to 3%, about the fixed-income assumption of 3.2%. Good is the premium arriving on top of typical: 6.5% + 3.2% = 9.7%, rounded to 10%.
 - Each option is simulated once per scenario.
 - Must be swappable later for Monte Carlo or historical replay without UI changes. If Monte Carlo is added, use a fixed random seed so results don't jitter as the slider moves.
+
+### Fees
+- Default annual fee by fund type, used when the user has not set a fee: index ETF **0.20%**, mutual fund **2.00%**. A fee the user sets overrides the default and stays when the fund type changes.
+- Sources:
+  - Index ETF: published MERs of the all-equity asset-allocation ETFs (2026): XEQT 0.20%, ZEQT 0.18%, VEQT 0.24%.
+  - Mutual fund: the OSC asset-weighted MER table for Canadian equity mutual funds (getsmarteraboutmoney.ca, Class A), 1.88%–2.21% across the years shown.
+- Bank index mutual funds (e.g. about 0.3%) are far below the mutual-fund default. The ⓘ copy tells the user to check their fund's MER and enter it.
 
 ### Recommendation rule (balanced)
 ```
@@ -175,7 +191,7 @@ Coast FIRE reached when invested balance (today's dollars) >= coastNumber
 - If limits can't cover what's needed, say so and show options.
 
 ### Priority profile
-- Not in the MVP. Until this exists, loan-payoff suggestions use current budget proportions only.
+- Not in the MVP. Until this exists, loan-payoff suggestions use current budget proportions only, or invest everything when there is no budget.
 - Saving ↔ enjoying slider, category ranking, separate risk tolerance setting.
 - Later: notice repeated rejected suggestions and ask whether to update priorities.
 
