@@ -99,6 +99,8 @@ struct NominalSimulator {
 
     /// One month in nominal dollars. Returns interest accrued this month.
     private mutating func step(monthIndex: Int, month: YearMonth) -> Decimal {
+        let allLoansRepaid = !freedLoanIDs.isEmpty && !loans.contains { $0.balance > 0 }
+
         // 1. Update rates. 2. Accrue interest.
         var interestAccrued: Decimal = 0
         for index in loans.indices {
@@ -138,8 +140,14 @@ struct NominalSimulator {
             }
         }
 
-        let unusedUserExtra = applyWaterfall(userExtra)
-        investPool = Cents.round(investPool + unusedUserExtra)
+        if allLoansRepaid {
+            // The extra-payment slice has no loan left, so it is freed money like a repaid minimum.
+            let freed = freedShares.allocate(userExtra)
+            investPool = Cents.round(investPool + freed.investing)
+        } else {
+            let unusedUserExtra = applyWaterfall(userExtra)
+            investPool = Cents.round(investPool + unusedUserExtra)
+        }
         _ = applyWaterfall(freedExtra, sweepRemainder: false)
 
         // 5. Invest. 6. Grow.

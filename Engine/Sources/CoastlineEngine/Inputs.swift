@@ -191,6 +191,8 @@ public struct ProjectionInput: Hashable, Sendable {
     public var scenario: ProjectionScenario
     /// Current budget, used only to split a loan payment once that loan is paid off.
     public var budget: Budget
+    /// The user's split for freed loan payments. Nil until the user chooses; the projection then uses the split suggested from `budget`.
+    public var chosenFreedMoneySplit: FreedMoneySplit?
 
     public init(
         start: YearMonth,
@@ -203,7 +205,8 @@ public struct ProjectionInput: Hashable, Sendable {
         goal: CoastFireGoal,
         assumptions: Assumptions,
         scenario: ProjectionScenario,
-        budget: Budget = Budget()
+        budget: Budget = Budget(),
+        chosenFreedMoneySplit: FreedMoneySplit? = nil
     ) {
         self.start = start
         self.loans = loans
@@ -216,5 +219,6 @@ public struct ProjectionInput: Hashable, Sendable {
         self.assumptions = assumptions
         self.scenario = scenario
         self.budget = budget
+        self.chosenFreedMoneySplit = chosenFreedMoneySplit
     }
 }

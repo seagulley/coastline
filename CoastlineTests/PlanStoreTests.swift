@@ -36,6 +36,18 @@ final class PlanStoreTests: XCTestCase {
 
 @MainActor
 final class AppModelTests: XCTestCase {
+    func testEmptyStoreShowsTheStarterScenarios() {
+        let model = AppModel(
+            store: MemoryPlanStore(),
+            engine: PlanProjectionEngine(start: YearMonth(year: 2026, month: 1))
+        )
+
+        XCTAssertFalse(model.hasStoredPlan)
+        XCTAssertEqual(model.plan, .empty)
+        XCTAssertTrue(model.usingStarterPlan)
+        XCTAssertEqual(model.projection.scenarios.map(\.scenario), [.good, .typical, .bad])
+    }
+
     func testLaunchWithNoFileShowsNothingSavedAndAsksTheEngine() {
         let engine = RecordingEngine()
         let model = AppModel(store: MemoryPlanStore(), engine: engine)
@@ -44,7 +56,8 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.plan, .empty)
         XCTAssertNil(model.storageError)
         XCTAssertEqual(model.projection, .empty)
-        XCTAssertEqual(engine.plans, [.empty])
+        XCTAssertFalse(model.usingStarterPlan)
+        XCTAssertEqual(engine.plans, [.empty, .starter])
         XCTAssertEqual(model.plan.assumptions, .defaults)
     }
 
@@ -60,12 +73,34 @@ final class AppModelTests: XCTestCase {
 
         XCTAssertTrue(model.hasStoredPlan)
         XCTAssertEqual(model.plan, plan)
-        XCTAssertEqual(engine.plans, [.empty, plan])
+        XCTAssertEqual(engine.plans, [.empty, .starter, plan, .starter])
 
         let reloaded = AppModel(store: FilePlanStore(directory: directory), engine: RecordingEngine())
         XCTAssertTrue(reloaded.hasStoredPlan)
         XCTAssertEqual(reloaded.plan, plan)
         XCTAssertEqual(reloaded.projection, .empty)
+    }
+
+    func testSavingTheStarterPlanRecordsTheChosenSplitAndReloads() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let engine = PlanProjectionEngine(start: YearMonth(year: 2026, month: 1))
+        let model = AppModel(store: FilePlanStore(directory: directory), engine: engine)
+        XCTAssertTrue(model.usingStarterPlan)
+
+        let chosenAt = Date(timeIntervalSince1970: 1_800_000_000)
+        try model.saveShownPlan(at: chosenAt)
+
+        XCTAssertTrue(model.hasStoredPlan)
+        XCTAssertFalse(model.usingStarterPlan)
+        let expected = ChosenPlan(mode: .everyMonth, loanShare: 0, chosenAt: chosenAt)
+        XCTAssertEqual(model.plan.chosenPlan, expected)
+
+        let reloaded = AppModel(store: FilePlanStore(directory: directory), engine: engine)
+        XCTAssertTrue(reloaded.hasStoredPlan)
+        XCTAssertFalse(reloaded.usingStarterPlan)
+        XCTAssertEqual(reloaded.plan, model.plan)
+        XCTAssertEqual(reloaded.projection, model.projection)
     }
 
     func testProjectionIsWhateverTheEngineReturns() {

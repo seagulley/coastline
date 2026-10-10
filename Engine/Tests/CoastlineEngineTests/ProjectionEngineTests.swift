@@ -366,6 +366,59 @@ final class ProjectionEngineTests: XCTestCase {
         XCTAssertEqual(result.coastFireDateIfFreedMoneyInvested, YearMonth(year: 2026, month: 2))
     }
 
+    func testChosenFreedSplitReplacesTheSuggestion() {
+        let paidOff = makeLoan(balance: 1000, rate: 0, minimum: 1000)
+        let remaining = makeLoan(balance: 5000, rate: 0, minimum: 100)
+        let budget = Budget(
+            categories: [
+                BudgetCategory(amount: 300, role: .investing),
+                BudgetCategory(amount: 100, role: .extraLoanPayment),
+                BudgetCategory(amount: 100, role: .other),
+            ],
+            emergencyFundIsFull: true
+        )
+        let result = project(
+            loans: [paidOff, remaining],
+            annualReturn: 0,
+            currentAge: 40,
+            retirementAge: 45,
+            budget: budget,
+            chosenFreedSplit: FreedMoneySplit(loanShare: decimal("0.5"), investShare: decimal("0.5"))
+        )
+        XCTAssertEqual(result.suggestedFreedMoneySplit.loanShare, decimal("0.2"))
+        XCTAssertEqual(result.suggestedFreedMoneySplit.investShare, decimal("0.6"))
+        XCTAssertEqual(result.snapshot(at: 2)?.nominal.balance(for: remaining.id), 4300)
+        XCTAssertEqual(result.snapshot(at: 2)?.nominal.investments, 500)
+    }
+
+    func testExtraLoanMoneyFollowsTheFreedSplitOnceEveryLoanIsRepaid() {
+        let loan = makeLoan(balance: 100, rate: 0, minimum: 0)
+        let budget = Budget(
+            categories: [
+                BudgetCategory(amount: 300, role: .investing),
+                BudgetCategory(amount: 100, role: .extraLoanPayment),
+                BudgetCategory(amount: 100, role: .other),
+            ],
+            emergencyFundIsFull: true
+        )
+        let result = project(
+            loans: [loan],
+            monthlyAmount: 200,
+            loanShare: decimal("0.5"),
+            annualReturn: 0,
+            spending: 300,
+            withdrawal: 1,
+            currentAge: 40,
+            retirementAge: 45,
+            budget: budget
+        )
+        XCTAssertEqual(result.loanPayoffDate, start)
+        XCTAssertEqual(result.snapshot(at: 1)?.nominal.investments, 100)
+        XCTAssertEqual(result.snapshot(at: 2)?.nominal.investments, 260)
+        XCTAssertEqual(result.coastFireDate, YearMonth(year: 2026, month: 3))
+        XCTAssertEqual(result.coastFireDateIfFreedMoneyInvested, YearMonth(year: 2026, month: 2))
+    }
+
     func testNetWorthIsInvestmentsMinusLoans() {
         let loan = makeLoan(balance: 400, rate: 0, minimum: 0)
         let result = project(loans: [loan], investments: 1000, retirementAge: 31)
@@ -396,7 +449,8 @@ final class ProjectionEngineTests: XCTestCase {
         currentAge: Int = 30,
         retirementAge: Int = 65,
         scenario: ProjectionScenario = .typical,
-        budget: Budget = Budget()
+        budget: Budget = Budget(),
+        chosenFreedSplit: FreedMoneySplit? = nil
     ) -> ProjectionResult {
         let returns = annualReturn ?? Assumptions.defaultTypicalAnnualReturn
         let input = ProjectionInput(
@@ -422,7 +476,8 @@ final class ProjectionEngineTests: XCTestCase {
                 annualFee: fee
             ),
             scenario: scenario,
-            budget: budget
+            budget: budget,
+            chosenFreedMoneySplit: chosenFreedSplit
         )
         return ProjectionEngine.project(input)
     }

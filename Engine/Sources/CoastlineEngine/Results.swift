@@ -80,11 +80,12 @@ public struct ProjectionResult: Hashable, Sendable {
     public var annualReturn: Decimal
     /// Month 0, then one snapshot per simulated month through retirement.
     public var months: [MonthSnapshot]
-    /// First month the invested balance, in today's dollars, reaches the Coast FIRE number. Uses the suggested split of freed loan payments.
+    /// First month the invested balance, in today's dollars, reaches the Coast FIRE number.
+    /// Freed loan payments follow the chosen split, or the suggested split until the user chooses.
     public var coastFireDate: YearMonth?
     /// Same projection, except every freed loan payment is invested. Informational.
     public var coastFireDateIfFreedMoneyInvested: YearMonth?
-    /// Month the last remaining loan reaches zero under the suggested split.
+    /// Month the last remaining loan reaches zero.
     public var loanPayoffDate: YearMonth?
     public var loanPayoffs: [LoanPayoff]
     /// Sum of each month's interest, converted to today's dollars in that month.

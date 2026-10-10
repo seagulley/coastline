@@ -11,6 +11,15 @@ enum PlanFormatting {
             ?? NSDecimalNumber(decimal: value).stringValue
     }
 
+    static func percent(_ share: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .percent
+        formatter.maximumFractionDigits = 0
+        formatter.locale = Locale(identifier: "en_CA")
+        return formatter.string(from: NSDecimalNumber(decimal: share))
+            ?? NSDecimalNumber(decimal: share).stringValue
+    }
+
     static func monthAndYear(_ date: CalendarDate) -> String {
         var components = DateComponents()
         components.calendar = Calendar(identifier: .gregorian)

@@ -29,6 +29,44 @@ struct UserPlan: Codable, Equatable, Sendable {
         chosenPlan: nil,
         budget: .empty
     )
+
+    /// Enough of a plan for the engine to return good, typical, and bad scenarios
+    /// before Setup exists. It is saved only when the user chooses to save it, and it is not a product default.
+    static let starter = UserPlan(
+        loans: [
+            Loan(
+                id: UUID(uuidString: "A1B2C3D4-E5F6-7890-ABCD-EF1234567890")!,
+                balance: planDecimal("8000"),
+                disbursement: .afterJuly12023,
+                rate: .fixed(annualRate: planDecimal("0.05")),
+                interestStart: CalendarDate(year: 2026, month: 1, day: 1),
+                minimumPayment: planDecimal("150"),
+                repaymentTermMonths: nil,
+                interestMethod: .dailyAccrualMonthlyApplication
+            )
+        ],
+        money: MoneyToAllocate(monthlyAmount: planDecimal("2000"), lumpSums: []),
+        split: AllocationSplit(loanShare: 0),
+        investments: Investments(balance: planDecimal("15000"), fundType: .indexETF),
+        goal: CoastFireGoal(
+            currentAge: 35,
+            retirementAge: 65,
+            yearlyRetirementSpending: planDecimal("24000"),
+            withdrawalRate: planDecimal("0.04")
+        ),
+        assumptions: Assumptions(
+            badAnnualReturn: planDecimal("0.03"),
+            typicalAnnualReturn: planDecimal("0.065"),
+            goodAnnualReturn: planDecimal("0.10"),
+            inflation: planDecimal("0.02"),
+            primeRate: planDecimal("0.045"),
+            annualFee: planDecimal("0.002"),
+            riskToleranceMonths: 12,
+            contributionsRiseWithInflation: true
+        ),
+        chosenPlan: nil,
+        budget: .empty
+    )
 }
 
 struct Loan: Codable, Equatable, Identifiable, Sendable {

@@ -7,6 +7,15 @@ struct FreedShares: Equatable {
     static let none = FreedShares(loanShare: 0, investShare: 0)
     static let allToInvesting = FreedShares(loanShare: 0, investShare: 1)
 
+    init(loanShare: Decimal, investShare: Decimal) {
+        self.loanShare = loanShare
+        self.investShare = investShare
+    }
+
+    init(_ split: FreedMoneySplit) {
+        self.init(loanShare: split.loanShare, investShare: split.investShare)
+    }
+
     /// Splits `amount` into loan and investing portions. Rounding stays inside the original amount.
     func allocate(_ amount: Decimal) -> (loans: Decimal, investing: Decimal) {
         let amount = Cents.round(max(amount, 0))

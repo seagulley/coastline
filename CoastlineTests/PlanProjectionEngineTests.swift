@@ -4,6 +4,15 @@ import XCTest
 final class PlanProjectionEngineTests: XCTestCase {
     private let start = YearMonth(year: 2026, month: 1)
 
+    func testStarterPlanShowsGoodTypicalAndBad() {
+        let projection = PlanProjectionEngine(start: start).project(.starter)
+        XCTAssertEqual(projection.scenarios.map(\.scenario), [.good, .typical, .bad])
+        let dates = projection.scenarios.map(\.coastFireDate)
+        XCTAssertTrue(dates.allSatisfy { $0 != nil })
+        XCTAssertEqual(Set(dates).count, 3)
+        XCTAssertFalse(projection.scenarios.contains { $0.months.isEmpty })
+    }
+
     func testIncompletePlanProducesNoProjection() {
         let engine = PlanProjectionEngine(start: start)
         XCTAssertEqual(engine.project(.empty), .empty)

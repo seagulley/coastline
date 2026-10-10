@@ -4,7 +4,8 @@ public enum ProjectionEngine {
     public static func project(_ input: ProjectionInput) -> ProjectionResult {
         let annualReturn = input.assumptions.annualReturn(for: input.scenario)
         let suggested = FreedMoney.suggestedShares(from: input.budget)
-        let primary = simulate(input, annualReturn: annualReturn, freedShares: suggested)
+        let applied = input.chosenFreedMoneySplit.map(FreedShares.init) ?? suggested
+        let primary = simulate(input, annualReturn: annualReturn, freedShares: applied)
         let investedFreed = simulate(input, annualReturn: annualReturn, freedShares: .allToInvesting)
         let presented = present(primary.months, input: input, annualReturn: annualReturn)
         let investedCoastDate = present(investedFreed.months, input: input, annualReturn: annualReturn).coastFireDate
