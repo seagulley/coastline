@@ -1,0 +1,37 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [mainline]
+
+jobs:
+  engine:
+    name: Engine tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run engine tests
+        run: swift test --package-path Engine
+
+  app:
+    name: App tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pick an iPhone simulator
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          runtimes = sorted((k for k in devices if "iOS" in k), reverse=True)
+          print(next(d["udid"] for k in runtimes for d in devices[k] if d["name"].startswith("iPhone")))
+          ')
+          echo "SIMULATOR_ID=$udid" >> "$GITHUB_ENV"
+      - name: Run app tests
+        run: |
+          xcodebuild test \
+            -project Coastline.xcodeproj \
+            -scheme Coastline \
+            -destination "id=$SIMULATOR_ID" \
+            CODE_SIGNING_ALLOWED=NO
