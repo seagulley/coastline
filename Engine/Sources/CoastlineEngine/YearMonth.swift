@@ -27,6 +27,11 @@ public struct YearMonth: Hashable, Comparable, Sendable {
         return YearMonth(year: year, month: month + 1)
     }
 
+    /// Whole months from `other` to this month. Negative when `other` is later.
+    public func months(since other: YearMonth) -> Int {
+        (year * 12 + month) - (other.year * 12 + other.month)
+    }
+
     /// Gregorian length of this month. Leap-year February has 29 days.
     public var days: Int {
         switch month {

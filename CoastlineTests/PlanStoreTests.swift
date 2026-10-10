@@ -154,6 +154,10 @@ private final class RecordingEngine: ProjectionEngine {
         plans.append(plan)
         return result
     }
+
+    func recommend(_: UserPlan) -> SplitRecommendation? {
+        nil
+    }
 }
 
 private final class FailingPlanStore: PlanStore {

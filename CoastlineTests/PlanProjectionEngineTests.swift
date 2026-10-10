@@ -16,6 +16,41 @@ final class PlanProjectionEngineTests: XCTestCase {
     func testIncompletePlanProducesNoProjection() {
         let engine = PlanProjectionEngine(start: start)
         XCTAssertEqual(engine.project(.empty), .empty)
+        XCTAssertNil(engine.recommend(.empty))
+    }
+
+    func testRecommendationShowsTheProjectionForTheRecommendedSplit() {
+        let engine = PlanProjectionEngine(start: start)
+        let recommendation = try! XCTUnwrap(engine.recommend(.starter))
+        XCTAssertFalse(recommendation.reason.isEmpty)
+        XCTAssertTrue((0...10).map { Decimal($0) / 10 }.contains(recommendation.loanShare))
+
+        var recommended = UserPlan.starter
+        recommended.split.loanShare = recommendation.loanShare
+        XCTAssertEqual(recommendation.projection, engine.project(recommended))
+    }
+
+    func testRecommendationUsesThePlanRiskTolerance() {
+        let source = DatedScenarios(typicalByTenths: [2: 0], badByTenths: [2: 13, 6: 0])
+        let engine = PlanProjectionEngine(start: start, scenarios: source)
+        var plan = UserPlan.starter
+        XCTAssertEqual(engine.recommend(plan)?.loanShare, Decimal(string: "0.6"))
+        plan.assumptions.riskToleranceMonths = 13
+        XCTAssertEqual(engine.recommend(plan)?.loanShare, Decimal(string: "0.2"))
+    }
+
+    func testScenarioSourceCanBeReplacedWithoutChangingTheProjectionShape() {
+        let source = DatedScenarios(typicalByTenths: [0: 7], badByTenths: [0: 9])
+        let projection = PlanProjectionEngine(start: start, scenarios: source).project(.starter)
+        XCTAssertEqual(projection.scenarios.map(\.scenario), [.good, .typical, .bad])
+        XCTAssertEqual(
+            projection.scenarios.map(\.coastFireDate),
+            [
+                CalendarDate(year: 2030, month: 7, day: 1),
+                CalendarDate(year: 2030, month: 8, day: 1),
+                CalendarDate(year: 2030, month: 10, day: 1),
+            ]
+        )
     }
 
     func testScreenReadsEachScenarioFromTheEngine() {
