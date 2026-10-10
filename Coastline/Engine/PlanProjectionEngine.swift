@@ -63,6 +63,50 @@ struct PlanProjectionEngine: ProjectionEngine {
         engineInput(plan, scenario: .typical).flatMap(BreakEven.annualReturn)
     }
 
+    func checklist(_ plan: UserPlan, for target: SplitTarget) -> ChoiceChecklist? {
+        guard let input = engineInput(plan, scenario: .typical) else { return nil }
+        let months = CoastlineEngine.ProjectionEngine.project(input).months
+        let fee = FeeAssumption(
+            annualFee: input.annualFee,
+            fundType: plan.investments.fundType ?? .indexETF,
+            setByUser: plan.assumptions.annualFee != nil
+        )
+        switch target {
+        case .everyMonth:
+            let payments = months.first { $0.monthIndex == 1 }?.payments ?? .none
+            return ChoiceChecklist(
+                mode: .everyMonth,
+                month: YearMonth(year: engineStart.year, month: engineStart.month),
+                loanPayments: payments.loans.map { payment in
+                    ChecklistLoanPayment(
+                        loanID: payment.id,
+                        minimum: payment.minimum,
+                        extra: payment.extra,
+                        total: payment.total
+                    )
+                },
+                investing: payments.invested,
+                investingRisesWithInflation: plan.assumptions.contributionsRiseWithInflation,
+                fee: fee
+            )
+        case .lumpSum(let id):
+            guard let lump = input.lumpSums.first(where: { $0.id == id }) else { return nil }
+            let payment = months
+                .first { $0.monthIndex > 0 && $0.month == lump.month }?
+                .payments.lumpSums.first { $0.id == id }
+            return ChoiceChecklist(
+                mode: .oneTime,
+                month: YearMonth(year: lump.month.year, month: lump.month.month),
+                loanPayments: (payment?.loans ?? []).map { amount in
+                    ChecklistLoanPayment(loanID: amount.id, minimum: 0, extra: amount.amount, total: amount.amount)
+                },
+                investing: payment?.invested ?? 0,
+                investingRisesWithInflation: false,
+                fee: fee
+            )
+        }
+    }
+
     private func projection(_ outcomes: ScenarioOutcomes) -> Projection {
         Projection(scenarios: ReturnScenario.allCases.map { scenario in
             scenarioProjection(outcomes[engineScenario(scenario)], scenario: scenario)

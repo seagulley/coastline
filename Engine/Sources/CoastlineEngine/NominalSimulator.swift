@@ -7,6 +7,7 @@ struct NominalMonth {
     var investments: Decimal
     var cumulativeInterest: Decimal
     var interestAccrued: Decimal
+    var payments: MonthPayments
 }
 
 struct NominalSimulator {
@@ -73,7 +74,9 @@ struct NominalSimulator {
     }
 
     mutating func run() -> (months: [NominalMonth], payoffMonthIndex: [UUID: Int]) {
-        var months = [record(monthIndex: 0, month: start, interestAccrued: 0, cumulativeInterest: 0)]
+        var months = [
+            record(monthIndex: 0, month: start, interestAccrued: 0, cumulativeInterest: 0, payments: .none),
+        ]
         var cumulativeInterest: Decimal = 0
 
         if horizonMonths == 0 {
@@ -82,22 +85,23 @@ struct NominalSimulator {
 
         for monthIndex in 1...horizonMonths {
             let month = start.adding(months: monthIndex - 1)
-            let accrued = step(monthIndex: monthIndex, month: month)
+            let (accrued, payments) = step(monthIndex: monthIndex, month: month)
             cumulativeInterest = Cents.round(cumulativeInterest + accrued)
             months.append(
                 record(
                     monthIndex: monthIndex,
                     month: month,
                     interestAccrued: accrued,
-                    cumulativeInterest: cumulativeInterest
+                    cumulativeInterest: cumulativeInterest,
+                    payments: payments
                 )
             )
         }
         return (months, payoffMonthIndex)
     }
 
-    /// One month in nominal dollars. Returns interest accrued this month.
-    private mutating func step(monthIndex: Int, month: YearMonth) -> Decimal {
+    /// One month in nominal dollars. Returns interest accrued this month and where the month's money went.
+    private mutating func step(monthIndex: Int, month: YearMonth) -> (interest: Decimal, payments: MonthPayments) {
         // 1. Update rates. 2. Accrue interest.
         var interestAccrued: Decimal = 0
         for index in loans.indices {
@@ -115,21 +119,15 @@ struct NominalSimulator {
             ? TodayDollars.inflationFactor(inflation: inflation, monthIndex: elapsedMonths)
             : Decimal(1)
         var investPool = Cents.round(monthlyInvest * investScale) + recurringInvest
-        var userExtra = monthlyLoan
         var freedExtra = recurringLoanExtra
 
-        for lump in lumpsByMonth[month] ?? [] {
-            let share = lump.loanShare ?? loanShare
-            let (lumpLoan, lumpInvest) = Allocation.split(lump.amount, loanShare: share)
-            userExtra = Cents.round(userExtra + lumpLoan)
-            investPool = Cents.round(investPool + lumpInvest)
-        }
-
         // 4. Minimums, then extra. Interest was already added to the balance, so payments reduce it first.
+        var minimums: [UUID: Decimal] = [:]
         for index in loans.indices where loans[index].balance > 0 {
             let due = loans[index].balance
             let minimum = loans[index].minimumPayment
             let paid = pay(min(minimum, due), at: index)
+            minimums[loans[index].id] = paid
             if loans[index].balance == 0 {
                 let unused = Cents.round(minimum - paid)
                 let freed = loans[index].freedShares.allocate(unused)
@@ -139,11 +137,32 @@ struct NominalSimulator {
         }
 
         // Money headed to loans is invested once no loan is left to take it.
-        investPool = Cents.round(investPool + applyWaterfall(userExtra))
-        investPool = Cents.round(investPool + applyWaterfall(freedExtra))
+        // The waterfall pays in a fixed order, so paying the monthly slice, then each lump sum, then freed money
+        // sends each loan the same total as paying them together.
+        var extras: [UUID: Decimal] = [:]
+        investPool = Cents.round(investPool + applyWaterfall(monthlyLoan, paid: &extras))
+        var lumpPayments: [LumpSumPayment] = []
+        var lumpInvested: Decimal = 0
+        for lump in lumpsByMonth[month] ?? [] {
+            let share = lump.loanShare ?? loanShare
+            let (lumpLoan, lumpInvest) = Allocation.split(lump.amount, loanShare: share)
+            var toLoans: [UUID: Decimal] = [:]
+            let invested = Cents.round(lumpInvest + applyWaterfall(lumpLoan, paid: &toLoans))
+            lumpInvested = Cents.round(lumpInvested + invested)
+            lumpPayments.append(
+                LumpSumPayment(
+                    id: lump.id,
+                    loans: loans.compactMap { loan in
+                        toLoans[loan.id].map { LoanAmount(id: loan.id, amount: $0) }
+                    },
+                    invested: invested
+                )
+            )
+        }
+        investPool = Cents.round(investPool + applyWaterfall(freedExtra, paid: &extras))
 
         // 5. Invest. 6. Grow.
-        let grown = (investments + investPool) * growthFactor
+        let grown = (investments + investPool + lumpInvested) * growthFactor
         investments = Cents.round(grown)
 
         // Freed minimums start next month, once the payoff month is over.
@@ -158,7 +177,17 @@ struct NominalSimulator {
             freedLoanIDs.insert(loan.id)
         }
 
-        return interestAccrued
+        let payments = MonthPayments(
+            loans: loans.compactMap { loan in
+                let minimum = minimums[loan.id] ?? 0
+                let extra = extras[loan.id] ?? 0
+                guard minimum > 0 || extra > 0 else { return nil }
+                return LoanPayment(id: loan.id, minimum: minimum, extra: extra)
+            },
+            invested: investPool,
+            lumpSums: lumpPayments
+        )
+        return (interestAccrued, payments)
     }
 
     private func accruedInterest(for loan: LoanState, days: Int) -> Decimal {
@@ -170,8 +199,8 @@ struct NominalSimulator {
         }
     }
 
-    /// Pays loans highest rate first. Returns what is left once every loan is repaid.
-    private mutating func applyWaterfall(_ amount: Decimal) -> Decimal {
+    /// Pays loans highest rate first, adding each payment to `paid`. Returns what is left once every loan is repaid.
+    private mutating func applyWaterfall(_ amount: Decimal, paid: inout [UUID: Decimal]) -> Decimal {
         var remaining = max(amount, 0)
         let indexes = loans.indices
             .filter { loans[$0].balance > 0 }
@@ -183,7 +212,11 @@ struct NominalSimulator {
             }
         for index in indexes {
             if remaining <= 0 { break }
-            remaining = Cents.round(remaining - pay(remaining, at: index))
+            let applied = pay(remaining, at: index)
+            if applied > 0 {
+                paid[loans[index].id] = Cents.round((paid[loans[index].id] ?? 0) + applied)
+            }
+            remaining = Cents.round(remaining - applied)
         }
         return remaining
     }
@@ -198,7 +231,8 @@ struct NominalSimulator {
         monthIndex: Int,
         month: YearMonth,
         interestAccrued: Decimal,
-        cumulativeInterest: Decimal
+        cumulativeInterest: Decimal,
+        payments: MonthPayments
     ) -> NominalMonth {
         NominalMonth(
             monthIndex: monthIndex,
@@ -206,7 +240,8 @@ struct NominalSimulator {
             loanBalances: loans.map { LoanBalance(id: $0.id, balance: $0.balance) },
             investments: investments,
             cumulativeInterest: cumulativeInterest,
-            interestAccrued: interestAccrued
+            interestAccrued: interestAccrued,
+            payments: payments
         )
     }
 }

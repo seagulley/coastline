@@ -109,8 +109,11 @@ The name on the Home screen and under the app icon is Coastline.
 
 ### After choosing
 - Checklist of concrete steps (e.g. loan payment amount, amount to put in TFSA).
+  - Every month: what to pay on each loan in the first month (minimum plus extra) and the monthly amount to invest, rising with inflation when contributions do.
+  - One time: how much of the one-time money goes to each loan, and how much to invest, in its month.
+  - Amounts are the engine's payments for the chosen split, in actual dollars for that month. Steps can be ticked off; the app moves no money.
 - Shows Coast FIRE date change (before → after).
-- Fee assumption is the fund-type default (index ETF vs. mutual fund) unless the user set one.
+- Fee assumption is the fund-type default (index ETF vs. mutual fund) unless the user set one, shown as e.g. "0.20%, index ETF default" or "0.35%, set by you".
 
 ---
 
@@ -126,7 +129,7 @@ The name on the Home screen and under the app icon is Coastline.
 - **Freed payments:** per loan, the user's answer at payoff (invest it / keep it). None until the user answers.
 
 ### Outputs (per option, per scenario)
-- Month-by-month: loan balances, investment balance, net worth, cumulative interest paid
+- Month-by-month: loan balances, investment balance, net worth, cumulative interest paid, and where the month's money went (each loan's minimum and extra, the amount invested, and each lump sum's loan and investing amounts, in nominal dollars)
 - Coast FIRE date
 - Loan payoff date
 - Total interest paid

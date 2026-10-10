@@ -28,6 +28,69 @@ public struct MonthFigures: Hashable, Sendable {
     }
 }
 
+/// What one loan received in a month, in nominal dollars.
+public struct LoanPayment: Hashable, Sendable {
+    public var id: UUID
+    /// The minimum payment, or the balance due when that is smaller.
+    public var minimum: Decimal
+    /// From the loan slice of the monthly amount and from freed payments, paid highest rate first.
+    public var extra: Decimal
+
+    public init(id: UUID, minimum: Decimal, extra: Decimal) {
+        self.id = id
+        self.minimum = minimum
+        self.extra = extra
+    }
+
+    public var total: Decimal {
+        Cents.round(minimum + extra)
+    }
+}
+
+/// An amount sent to one loan, in nominal dollars.
+public struct LoanAmount: Hashable, Sendable {
+    public var id: UUID
+    public var amount: Decimal
+
+    public init(id: UUID, amount: Decimal) {
+        self.id = id
+        self.amount = amount
+    }
+}
+
+/// Where one lump sum went in its month, in nominal dollars.
+public struct LumpSumPayment: Hashable, Sendable {
+    public var id: UUID
+    /// The loan slice, paid highest rate first after the month's regular payments.
+    public var loans: [LoanAmount]
+    /// The investing slice, plus any loan slice left once no loan has a balance.
+    public var invested: Decimal
+
+    public init(id: UUID, loans: [LoanAmount], invested: Decimal) {
+        self.id = id
+        self.loans = loans
+        self.invested = invested
+    }
+}
+
+/// Where one month's money went, in nominal dollars. Month 0 has no payments.
+public struct MonthPayments: Hashable, Sendable {
+    /// Loans that received money this month, in input order.
+    public var loans: [LoanPayment]
+    /// Added to investments from the monthly amount, freed payments, and loan money left once no loan has a balance.
+    /// Lump sums are counted in `lumpSums` instead.
+    public var invested: Decimal
+    public var lumpSums: [LumpSumPayment]
+
+    public init(loans: [LoanPayment], invested: Decimal, lumpSums: [LumpSumPayment]) {
+        self.loans = loans
+        self.invested = invested
+        self.lumpSums = lumpSums
+    }
+
+    public static let none = MonthPayments(loans: [], invested: 0, lumpSums: [])
+}
+
 public struct MonthSnapshot: Hashable, Sendable {
     /// 0 is the start of the projection. Each later index is the end of one simulated month.
     public var monthIndex: Int
@@ -37,19 +100,22 @@ public struct MonthSnapshot: Hashable, Sendable {
     public var today: MonthFigures
     /// Interest accrued this month, in nominal dollars. Month 0 is zero.
     public var interestAccrued: Decimal
+    public var payments: MonthPayments
 
     public init(
         monthIndex: Int,
         month: YearMonth,
         nominal: MonthFigures,
         today: MonthFigures,
-        interestAccrued: Decimal
+        interestAccrued: Decimal,
+        payments: MonthPayments = .none
     ) {
         self.monthIndex = monthIndex
         self.month = month
         self.nominal = nominal
         self.today = today
         self.interestAccrued = interestAccrued
+        self.payments = payments
     }
 }
 
