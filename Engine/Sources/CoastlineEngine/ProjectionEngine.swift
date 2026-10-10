@@ -48,7 +48,7 @@ public enum ProjectionEngine {
         annualReturn: Decimal,
         freedShares: FreedShares
     ) -> (months: [NominalMonth], payoffMonthIndex: [UUID: Int]) {
-        let netAnnual = annualReturn - input.assumptions.annualFee
+        let netAnnual = annualReturn - input.annualFee
         let growthBase = 1 + netAnnual
         let growthFactor = growthBase > 0 ? Compounding.power(growthBase, 1 / Decimal(12)) : 0
         let horizon = max(0, input.goal.retirementAge - input.goal.currentAge) * 12
@@ -164,7 +164,7 @@ public enum ProjectionEngine {
         guard let coastNumber = CoastFireMath.coastNumber(
             yearlySpending: input.goal.yearlySpending,
             withdrawalRate: input.goal.withdrawalRate,
-            nominalAnnualReturn: annualReturn - input.assumptions.annualFee,
+            nominalAnnualReturn: annualReturn - input.annualFee,
             inflation: input.assumptions.inflation,
             yearsLeft: CoastFireMath.yearsLeft(goal: input.goal, monthIndex: monthIndex)
         ) else {

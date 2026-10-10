@@ -79,6 +79,21 @@ final class PlanProjectionEngineTests: XCTestCase {
         )
     }
 
+    func testUnsetFeeStartsAtTheFundTypeDefault() {
+        XCTAssertEqual(FundType.indexETF.defaultAnnualFee, planDecimal("0.002"))
+        XCTAssertEqual(FundType.mutualFund.defaultAnnualFee, planDecimal("0.02"))
+
+        let engine = PlanProjectionEngine(start: start)
+        var unset = UserPlan.starter
+        unset.investments.fundType = .mutualFund
+        unset.assumptions.annualFee = nil
+        var mutualFundFee = unset
+        mutualFundFee.assumptions.annualFee = planDecimal("0.02")
+
+        XCTAssertEqual(engine.project(unset), engine.project(mutualFundFee))
+        XCTAssertNotEqual(engine.project(unset), engine.project(.starter))
+    }
+
     private func savingPlan() -> UserPlan {
         var plan = UserPlan.empty
         plan.money.monthlyAmount = 100

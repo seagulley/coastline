@@ -29,9 +29,19 @@ public enum LoanRate: Hashable, Sendable {
     }
 }
 
-public enum FundType: Hashable, Sendable {
+public enum FundType: Hashable, Sendable, CaseIterable {
     case indexETF
     case mutualFund
+
+    /// Annual fee used when the user has not set one: 0.20% for an index ETF, 2.00% for a mutual fund.
+    public var defaultAnnualFee: Decimal {
+        switch self {
+        case .indexETF:
+            return Decimal(20) / Decimal(10000)
+        case .mutualFund:
+            return Decimal(200) / Decimal(10000)
+        }
+    }
 }
 
 public struct Loan: Identifiable, Hashable, Sendable {
@@ -110,8 +120,8 @@ public struct Assumptions: Hashable, Sendable {
     public var inflation: Decimal
     /// Held constant for the whole projection.
     public var primeRate: Decimal
-    /// Annual fund fee, subtracted from the scenario return for monthly growth and for the Coast FIRE check.
-    public var annualFee: Decimal
+    /// Annual fund fee the user set. Nil uses the fund type's default fee.
+    public var annualFee: Decimal?
 
     public init(
         goodAnnualReturn: Decimal = Assumptions.defaultGoodAnnualReturn,
@@ -119,7 +129,7 @@ public struct Assumptions: Hashable, Sendable {
         badAnnualReturn: Decimal = Assumptions.defaultBadAnnualReturn,
         inflation: Decimal,
         primeRate: Decimal,
-        annualFee: Decimal = 0
+        annualFee: Decimal? = nil
     ) {
         self.goodAnnualReturn = goodAnnualReturn
         self.typicalAnnualReturn = typicalAnnualReturn
@@ -220,5 +230,11 @@ public struct ProjectionInput: Hashable, Sendable {
         self.scenario = scenario
         self.budget = budget
         self.chosenFreedMoneySplit = chosenFreedMoneySplit
+    }
+
+    /// Fee subtracted from the scenario return for monthly growth and for the Coast FIRE check:
+    /// the fee the user set, or the fund type's default.
+    public var annualFee: Decimal {
+        assumptions.annualFee ?? investments.fundType.defaultAnnualFee
     }
 }

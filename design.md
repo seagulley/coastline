@@ -63,6 +63,22 @@ The name on the Home screen and under the app icon is Coastline.
 - One topic per screen: about you → loans → current investments → Coast FIRE goal.
 - Unknown assumptions can use a typical default.
 - Ends by showing the Coast FIRE date.
+- Shown on first launch, when no plan is saved. Run again from the main screen, starting from the saved answers, with Cancel.
+- **About you:** current age, and the monthly amount for extra loan payments and investing, on top of minimum loan payments.
+- **Loans:** zero or more. Per loan: optional name, balance, fixed rate or margin over prime, interest method, whether interest has started (or the date it starts), disbursed before or after July 1 2023, and the statement minimum payment. With no statement payment, the minimum is estimated from the years left to repay.
+- **Prime rate** is asked on the loans screen only when a loan is floating. It has no default: a typed default would go stale, so the user enters their lender's current prime.
+- **Current investments:** balance and fund type. The fee is shown, not edited: the fund-type default (e.g. "0.20%, index ETF default"), or "set by you" once the user overrides it in Change assumptions.
+- **Coast FIRE goal:** retirement age, yearly retirement spending (today's dollars), withdrawal rate, and inflation. Return rates are listed, not edited; they change in Change assumptions.
+- **Typical defaults**, prefilled so the user can keep them:
+  - Retirement age **65**.
+  - Withdrawal rate **4%**, the common planning rate.
+  - Inflation **2%**, the Bank of Canada target.
+  - Years left to repay a loan **10**, used only to estimate a minimum payment until the user enters one from a statement.
+  - Interest method daily accrual, monthly application. Disbursed on or after July 1 2023. Interest already started.
+- Each screen lists what is missing; Next stays disabled until the screen is complete.
+- **Saving:** the plan is saved on the device when the last screen opens. Anything Setup does not ask about stays as saved (return rates, a fee the user set, risk tolerance, a chosen split, budget).
+- **Split:** until the user chooses one, Setup stores the engine's recommended split as a suggestion (no chosen plan) and the last screen shows it with its reason. A split the user already chose is kept. With no loans, everything is invested.
+- The last screen shows the typical Coast FIRE date, the good-to-bad range, the suggested split, and net worth over time.
 
 ### Home
 - Primary: Coast FIRE date (e.g. "November 2033"), with "about X years" and likely range below.
@@ -96,7 +112,7 @@ The name on the Home screen and under the app icon is Coastline.
 ## Engine
 
 ### Inputs
-- **Loans** (per loan): balance, disbursed before/after July 1 2023, rate type (floating/fixed), rate, interest start date, minimum payment, interest method
+- **Loans** (per loan): optional name (for display, e.g. the Home payoff item), balance, disbursed before/after July 1 2023, rate type (floating/fixed), rate, interest start date, minimum payment, interest method
 - **Money:** monthly amount to allocate, lump sums (amount + month)
 - **Split:** % to extra loan payment vs. investing
 - **Investments:** current balance, fund type (sets the default fee)
@@ -164,6 +180,7 @@ Coast FIRE reached when invested balance (today's dollars) >= coastNumber
 
 ### Fees
 - Default annual fee by fund type, used when the user has not set a fee: index ETF **0.20%**, mutual fund **2.00%**. A fee the user sets overrides the default and stays when the fund type changes.
+- The engine owns the default. An unset fee is passed to the engine as unset (not 0), and the engine applies the fund type's default. The plan stores a fee only when the user sets one. With no fund type yet, the index ETF default applies.
 - Sources:
   - Index ETF: published MERs of the all-equity asset-allocation ETFs (2026): XEQT 0.20%, ZEQT 0.18%, VEQT 0.24%.
   - Mutual fund: the OSC asset-weighted MER table for Canadian equity mutual funds (getsmarteraboutmoney.ca, Class A), 1.88%–2.21% across the years shown.

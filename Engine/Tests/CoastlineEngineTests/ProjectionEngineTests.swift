@@ -291,6 +291,35 @@ final class ProjectionEngineTests: XCTestCase {
         XCTAssertEqual(coastDate("748356.82", annualReturn: "0.06", fee: "0"), start)
     }
 
+    func testUnsetFeeUsesTheFundTypeDefault() {
+        XCTAssertEqual(FundType.indexETF.defaultAnnualFee, decimal("0.002"))
+        XCTAssertEqual(FundType.mutualFund.defaultAnnualFee, decimal("0.02"))
+
+        func balance(annualReturn: String, fee: Decimal?, fundType: FundType) -> Decimal? {
+            project(
+                investments: 100000,
+                annualReturn: decimal(annualReturn),
+                fee: fee,
+                fundType: fundType,
+                retirementAge: 31
+            ).snapshot(at: 12)?.nominal.investments
+        }
+        XCTAssertEqual(
+            balance(annualReturn: "0.065", fee: nil, fundType: .indexETF),
+            balance(annualReturn: "0.063", fee: 0, fundType: .indexETF)
+        )
+        XCTAssertEqual(
+            balance(annualReturn: "0.065", fee: nil, fundType: .mutualFund),
+            balance(annualReturn: "0.045", fee: 0, fundType: .mutualFund)
+        )
+    }
+
+    func testFeeTheUserSetStaysWhenFundTypeChanges() {
+        let etf = project(investments: 100000, fee: decimal("0.005"), fundType: .indexETF, retirementAge: 31)
+        let mutual = project(investments: 100000, fee: decimal("0.005"), fundType: .mutualFund, retirementAge: 31)
+        XCTAssertEqual(etf.snapshot(at: 12)?.nominal.investments, mutual.snapshot(at: 12)?.nominal.investments)
+    }
+
     func testFreedPaymentFollowsTheBudgetAndAllToInvestingIsReported() {
         let paidOff = makeLoan(balance: 1000, rate: 0, minimum: 1000)
         let remaining = makeLoan(balance: 5000, rate: 0, minimum: 100)
@@ -516,7 +545,8 @@ final class ProjectionEngineTests: XCTestCase {
         inflation: Decimal = 0,
         prime: Decimal = 0,
         annualReturn: Decimal? = nil,
-        fee: Decimal = 0,
+        fee: Decimal? = 0,
+        fundType: FundType = .indexETF,
         spending: Decimal = 40000,
         withdrawal: Decimal = 4 / Decimal(100),
         currentAge: Int = 30,
@@ -533,7 +563,7 @@ final class ProjectionEngineTests: XCTestCase {
             contributionsGrowWithInflation: growContributions,
             lumpSums: lumpSums,
             loanShare: loanShare,
-            investments: Investments(balance: investments, fundType: .indexETF),
+            investments: Investments(balance: investments, fundType: fundType),
             goal: CoastFireGoal(
                 currentAge: currentAge,
                 retirementAge: retirementAge,

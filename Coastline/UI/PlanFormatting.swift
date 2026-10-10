@@ -20,6 +20,17 @@ enum PlanFormatting {
             ?? NSDecimalNumber(decimal: share).stringValue
     }
 
+    /// A yearly rate such as a fee or a return, e.g. "0.20%" or "6.5%".
+    static func rate(_ rate: Decimal, minimumFractionDigits: Int = 0) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .percent
+        formatter.minimumFractionDigits = minimumFractionDigits
+        formatter.maximumFractionDigits = max(2, minimumFractionDigits)
+        formatter.locale = Locale(identifier: "en_CA")
+        return formatter.string(from: NSDecimalNumber(decimal: rate))
+            ?? NSDecimalNumber(decimal: rate).stringValue
+    }
+
     static func monthAndYear(_ date: CalendarDate) -> String {
         var components = DateComponents()
         components.calendar = Calendar(identifier: .gregorian)
