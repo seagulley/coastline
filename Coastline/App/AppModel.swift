@@ -7,7 +7,7 @@ import Observation
 @Observable
 final class AppModel {
     private let store: any PlanStore
-    private let engine: any ProjectionEngine
+    let engine: any ProjectionEngine
 
     private(set) var plan: UserPlan
     private(set) var projection: Projection
@@ -59,16 +59,42 @@ final class AppModel {
         showProjection(for: plan)
     }
 
+    /// The plan behind `projection`: the saved plan, or the starter plan when the saved one cannot be projected.
+    var shownPlan: UserPlan {
+        usingStarterPlan ? .starter : plan
+    }
+
     /// Saves the plan on screen, with its current split recorded as the chosen plan.
     /// Only called when the user explicitly asks to save.
     func saveShownPlan(at date: Date = Date()) throws {
-        var shown = usingStarterPlan ? UserPlan.starter : plan
+        var shown = shownPlan
         shown.chosenPlan = ChosenPlan(
             mode: .everyMonth,
             loanShare: shown.split.loanShare ?? 0,
             chosenAt: date
         )
         try apply(shown)
+    }
+
+    /// Saves `plan` with `loanShare` applied to `target` and recorded as the chosen plan.
+    /// Only called after the user confirms the choice. Returns the projection from before and after.
+    @discardableResult
+    func choose(
+        loanShare: Decimal,
+        for target: SplitTarget,
+        in plan: UserPlan,
+        at date: Date = Date()
+    ) throws -> (before: Projection, after: Projection) {
+        let before = projection
+        var chosen = plan.applyingLoanShare(loanShare, to: target)
+        chosen.chosenPlan = ChosenPlan(
+            mode: target.mode,
+            loanShare: loanShare,
+            chosenAt: date,
+            lumpSumID: target.lumpSumID
+        )
+        try apply(chosen)
+        return (before, projection)
     }
 
     /// Shows the engine result for the saved plan. When that plan cannot be projected,

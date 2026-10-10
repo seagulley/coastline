@@ -25,6 +25,30 @@ final class PlanStoreTests: XCTestCase {
         XCTAssertFalse(text.contains("netWorth"))
     }
 
+    func testOneTimeChoiceRoundTripsAndOlderPlansStillLoad() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = FilePlanStore(directory: directory)
+        let file = directory.appendingPathComponent("plan.json")
+
+        try store.save(samplePlan())
+        let older = try String(contentsOf: file, encoding: .utf8)
+        XCTAssertFalse(older.contains("lumpSumID"))
+        XCTAssertEqual(try store.load(), samplePlan())
+
+        var plan = samplePlan()
+        let lumpID = plan.money.lumpSums[0].id
+        plan.money.lumpSums[0].loanShare = planDecimal("0.6")
+        plan.chosenPlan = ChosenPlan(
+            mode: .oneTime,
+            loanShare: planDecimal("0.6"),
+            chosenAt: Date(timeIntervalSince1970: 1_800_000_000),
+            lumpSumID: lumpID
+        )
+        try store.save(plan)
+        XCTAssertEqual(try store.load(), plan)
+    }
+
     func testCorruptFileThrows() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -146,7 +170,7 @@ final class PlanFormattingTests: XCTestCase {
     }
 }
 
-private final class RecordingEngine: ProjectionEngine {
+private final class RecordingEngine: ProjectionEngine, @unchecked Sendable {
     var result = Projection.empty
     private(set) var plans: [UserPlan] = []
 
@@ -155,7 +179,7 @@ private final class RecordingEngine: ProjectionEngine {
         return result
     }
 
-    func recommend(_: UserPlan) -> SplitRecommendation? {
+    func recommend(_: UserPlan, for _: SplitTarget) -> SplitRecommendation? {
         nil
     }
 }
