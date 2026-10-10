@@ -14,10 +14,18 @@ final class AppModel {
     private(set) var hasStoredPlan: Bool
     private(set) var usingStarterPlan: Bool
     private(set) var storageError: String?
+    /// The month Home treats as now when deciding what is coming up.
+    let currentMonth: YearMonth
 
-    init(store: any PlanStore, engine: any ProjectionEngine, storageProblem: String? = nil) {
+    init(
+        store: any PlanStore,
+        engine: any ProjectionEngine,
+        storageProblem: String? = nil,
+        currentMonth: YearMonth = .current()
+    ) {
         self.store = store
         self.engine = engine
+        self.currentMonth = currentMonth
 
         if let storageProblem {
             plan = .empty
@@ -115,6 +123,48 @@ final class AppModel {
         return (before, projection)
     }
 
+    /// This month's split of the saved plan's monthly money, from the engine.
+    var monthlySplit: MonthlySplit? {
+        engine.monthlySplit(plan)
+    }
+
+    /// Loans the engine projects to be paid off by this month that the user has not answered for yet.
+    /// A loan hidden with Not paid off yet comes back the month after.
+    var payoffItems: [PayoffItem] {
+        guard !usingStarterPlan, let typical = projection.scenario(.typical) else { return [] }
+        return plan.loans.compactMap { loan in
+            guard loan.freedPaymentAnswer == nil,
+                  loan.payoffItemHiddenUntil.map({ currentMonth >= $0 }) ?? true,
+                  let payoff = typical.loanPayoffs.first(where: { $0.loanID == loan.id }),
+                  payoff.month <= currentMonth
+            else { return nil }
+            return PayoffItem(loanID: loan.id, loanName: loan.name, month: payoff.month, payment: payoff.payment)
+        }
+    }
+
+    /// Good, typical, and bad results for each answer to a payoff item. Runs off the main thread.
+    func payoffChoice(for loanID: UUID) async -> PayoffChoice {
+        let engine = engine
+        let invest = plan.answeringPayoff(of: loanID, with: .invest)
+        let keep = plan.answeringPayoff(of: loanID, with: .keep)
+        return await Task.detached(priority: .userInitiated) {
+            PayoffChoice(invest: engine.project(invest), keep: engine.project(keep))
+        }.value
+    }
+
+    /// Saves the user's answer for one loan. Only called when the user taps I'll invest it or I'll keep it.
+    func answerPayoff(of loanID: UUID, with answer: FreedPaymentAnswer) throws {
+        try apply(plan.answeringPayoff(of: loanID, with: answer))
+    }
+
+    /// Not paid off yet: hides the loan's payoff item until next month. The projection does not change.
+    func hidePayoffItem(of loanID: UUID) throws {
+        var updated = plan
+        guard let index = updated.loans.firstIndex(where: { $0.id == loanID }) else { return }
+        updated.loans[index].payoffItemHiddenUntil = currentMonth.next
+        try apply(updated)
+    }
+
     /// Shows the engine result for the saved plan. When that plan cannot be projected,
     /// shows the starter plan's good, typical, and bad scenarios instead.
     private func showProjection(for plan: UserPlan) {
@@ -132,5 +182,31 @@ final class AppModel {
             projection = projected
             usingStarterPlan = false
         }
+    }
+}
+
+/// A Coming up item: a loan the engine projects to be paid off, waiting for the user to confirm.
+struct PayoffItem: Identifiable, Equatable {
+    var loanID: UUID
+    var loanName: String?
+    var month: YearMonth
+    var payment: Decimal
+
+    var id: UUID { loanID }
+}
+
+/// The projection for each answer to a payoff item.
+struct PayoffChoice: Equatable, Sendable {
+    var invest: Projection
+    var keep: Projection
+}
+
+extension UserPlan {
+    func answeringPayoff(of loanID: UUID, with answer: FreedPaymentAnswer) -> UserPlan {
+        var plan = self
+        if let index = plan.loans.firstIndex(where: { $0.id == loanID }) {
+            plan.loans[index].freedPaymentAnswer = answer
+        }
+        return plan
     }
 }

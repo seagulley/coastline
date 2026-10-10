@@ -83,6 +83,10 @@ struct Loan: Codable, Equatable, Identifiable, Sendable {
     /// Used to estimate the minimum payment until a statement amount is entered.
     var repaymentTermMonths: Int?
     var interestMethod: InterestMethod
+    /// What the user said to do with the payment once this loan is paid off. Nil until they answer on Home.
+    var freedPaymentAnswer: FreedPaymentAnswer?
+    /// Set by Not paid off yet. Home shows the payoff item again from this month.
+    var payoffItemHiddenUntil: YearMonth?
 
     enum Disbursement: String, Codable, Sendable {
         case beforeJuly12023
@@ -93,6 +97,13 @@ struct Loan: Codable, Equatable, Identifiable, Sendable {
         case dailyAccrualMonthlyApplication
         case monthlyNominal
     }
+}
+
+enum FreedPaymentAnswer: String, Codable, Sendable {
+    /// The whole freed payment is added to monthly investing.
+    case invest
+    /// The freed payment leaves the projection, as if spent.
+    case keep
 }
 
 enum LoanRate: Codable, Equatable, Sendable {
@@ -212,10 +223,24 @@ enum SplitTarget: Hashable, Sendable {
     }
 }
 
-struct YearMonth: Codable, Equatable, Hashable, Sendable {
+struct YearMonth: Codable, Comparable, Hashable, Sendable {
     var year: Int
     /// 1 through 12.
     var month: Int
+
+    static func < (lhs: YearMonth, rhs: YearMonth) -> Bool {
+        (lhs.year, lhs.month) < (rhs.year, rhs.month)
+    }
+
+    var next: YearMonth {
+        month >= 12 ? YearMonth(year: year + 1, month: 1) : YearMonth(year: year, month: month + 1)
+    }
+
+    /// The current calendar month.
+    static func current(at date: Date = Date()) -> YearMonth {
+        let parts = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: date)
+        return YearMonth(year: parts.year ?? 2026, month: parts.month ?? 1)
+    }
 }
 
 struct CalendarDate: Codable, Equatable, Hashable, Sendable {

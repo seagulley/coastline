@@ -52,6 +52,13 @@ struct PlanProjectionEngine: ProjectionEngine {
         )
     }
 
+    func monthlySplit(_ plan: UserPlan) -> MonthlySplit? {
+        guard let amount = plan.money.monthlyAmount else { return nil }
+        let share = min(max(plan.split.loanShare ?? 0, 0), 1)
+        let split = Allocation.split(amount, loanShare: share)
+        return MonthlySplit(loanShare: share, investShare: 1 - share, toLoan: split.loans, toInvesting: split.investing)
+    }
+
     private func projection(_ outcomes: ScenarioOutcomes) -> Projection {
         Projection(scenarios: ReturnScenario.allCases.map { scenario in
             scenarioProjection(outcomes[engineScenario(scenario)], scenario: scenario)
@@ -72,7 +79,7 @@ struct PlanProjectionEngine: ProjectionEngine {
             return nil
         }
 
-        let start = CoastlineEngine.YearMonth(year: self.start.year, month: clampedMonth(self.start.month))
+        let start = engineStart
         let loans = plan.loans.map { loan in
             CoastlineEngine.Loan(
                 id: loan.id,
@@ -121,6 +128,10 @@ struct PlanProjectionEngine: ProjectionEngine {
                     CoastlineEngine.BudgetCategory(amount: category.amount, role: engineRole(category.role))
                 },
                 emergencyFundIsFull: plan.budget.emergencyFundIsFull
+            ),
+            freedPaymentAnswers: Dictionary(
+                plan.loans.compactMap { loan in loan.freedPaymentAnswer.map { (loan.id, engineAnswer($0)) } },
+                uniquingKeysWith: { first, _ in first }
             )
         )
     }
@@ -132,8 +143,16 @@ struct PlanProjectionEngine: ProjectionEngine {
         ScenarioProjection(
             scenario: scenario,
             coastFireDate: calendarDate(result.coastFireDate),
+            monthsUntilCoastFire: result.coastFireDate.map { max($0.months(since: engineStart), 0) },
             coastFireDateIfFreedMoneyInvested: calendarDate(result.coastFireDateIfFreedMoneyInvested),
             loanPayoffDate: calendarDate(result.loanPayoffDate),
+            loanPayoffs: result.loanPayoffs.map { payoff in
+                PlannedPayoff(
+                    loanID: payoff.id,
+                    month: YearMonth(year: payoff.month.year, month: payoff.month.month),
+                    payment: payoff.payment
+                )
+            },
             totalInterestPaid: result.totalInterestPaid,
             months: result.months.map { month in
                 MonthRecord(
@@ -147,6 +166,17 @@ struct PlanProjectionEngine: ProjectionEngine {
                 )
             }
         )
+    }
+
+    private var engineStart: CoastlineEngine.YearMonth {
+        CoastlineEngine.YearMonth(year: start.year, month: clampedMonth(start.month))
+    }
+
+    private func engineAnswer(_ answer: FreedPaymentAnswer) -> CoastlineEngine.FreedPaymentAnswer {
+        switch answer {
+        case .invest: .invest
+        case .keep: .keep
+        }
     }
 
     private func engineScenario(_ scenario: ReturnScenario) -> CoastlineEngine.ProjectionScenario {
