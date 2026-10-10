@@ -273,6 +273,24 @@ final class ProjectionEngineTests: XCTestCase {
         XCTAssertEqual(real, (1 + decimal("0.05")) / (1 + decimal("0.02")) - 1)
     }
 
+    func testCoastFireCheckUsesTheReturnAfterFees() {
+        func coastDate(_ balance: String, annualReturn: String, fee: String) -> YearMonth? {
+            project(
+                investments: decimal(balance),
+                inflation: decimal("0.02"),
+                annualReturn: decimal(annualReturn),
+                fee: decimal(fee),
+                spending: 40000,
+                withdrawal: decimal("0.04"),
+                currentAge: 55,
+                retirementAge: 65
+            ).coastFireDate
+        }
+        XCTAssertEqual(coastDate("748356.84", annualReturn: "0.06", fee: "0.01"), start)
+        XCTAssertNotEqual(coastDate("748356.82", annualReturn: "0.06", fee: "0.01"), start)
+        XCTAssertEqual(coastDate("748356.82", annualReturn: "0.06", fee: "0"), start)
+    }
+
     func testFreedPaymentFollowsTheBudgetAndAllToInvestingIsReported() {
         let paidOff = makeLoan(balance: 1000, rate: 0, minimum: 1000)
         let remaining = makeLoan(balance: 5000, rate: 0, minimum: 100)
@@ -346,7 +364,7 @@ final class ProjectionEngineTests: XCTestCase {
         XCTAssertEqual(result.snapshot(at: 2)?.nominal.balance(for: remaining.id), 4700)
     }
 
-    func testFreedLoanMoneyIsNotSweptIntoInvestments() {
+    func testLoanShareOfFreedMoneyIsInvestedOnceNoLoanIsLeft() {
         let loan = makeLoan(balance: 100, rate: 0, minimum: 100)
         let budget = Budget(
             categories: [BudgetCategory(amount: 100, role: .extraLoanPayment)],
@@ -361,9 +379,64 @@ final class ProjectionEngineTests: XCTestCase {
             retirementAge: 45,
             budget: budget
         )
-        XCTAssertEqual(result.snapshot(at: 2)?.nominal.investments, 0)
-        XCTAssertNil(result.coastFireDate)
+        XCTAssertEqual(result.suggestedFreedMoneySplit.loanShare, 1)
+        XCTAssertEqual(result.snapshot(at: 2)?.nominal.investments, 100)
+        XCTAssertEqual(result.coastFireDate, YearMonth(year: 2026, month: 2))
         XCTAssertEqual(result.coastFireDateIfFreedMoneyInvested, YearMonth(year: 2026, month: 2))
+    }
+
+    func testWithNoBudgetAFreedPaymentIsInvested() {
+        let paidOff = makeLoan(balance: 1000, rate: 0, minimum: 1000)
+        let remaining = makeLoan(balance: 5000, rate: 0, minimum: 100)
+        let result = project(loans: [paidOff, remaining], annualReturn: 0, currentAge: 40, retirementAge: 45)
+        XCTAssertEqual(result.suggestedFreedMoneySplit, FreedMoneySplit(loanShare: 0, investShare: 1))
+        XCTAssertEqual(result.snapshot(at: 1)?.nominal.investments, 0)
+        XCTAssertEqual(result.snapshot(at: 2)?.nominal.investments, 1000)
+        XCTAssertEqual(result.snapshot(at: 2)?.nominal.balance(for: remaining.id), 4800)
+        XCTAssertEqual(
+            result.months.map(\.nominal.investments),
+            project(
+                loans: [paidOff, remaining],
+                annualReturn: 0,
+                currentAge: 40,
+                retirementAge: 45,
+                chosenFreedSplit: FreedMoneySplit(loanShare: 0, investShare: 1)
+            ).months.map(\.nominal.investments)
+        )
+    }
+
+    func testABudgetWithOnlyNeedsStillInvestsTheFreedPayment() {
+        let loan = makeLoan(balance: 100, rate: 0, minimum: 100)
+        let budget = Budget(categories: [BudgetCategory(amount: 2000, role: .needs)], emergencyFundIsFull: true)
+        let result = project(loans: [loan], annualReturn: 0, currentAge: 40, retirementAge: 45, budget: budget)
+        XCTAssertEqual(result.suggestedFreedMoneySplit, FreedMoneySplit(loanShare: 0, investShare: 1))
+        XCTAssertEqual(result.snapshot(at: 2)?.nominal.investments, 100)
+    }
+
+    func testLoanSliceOfALumpSumIsInvestedOnceNoLoanIsLeft() {
+        let loan = makeLoan(balance: 100, rate: 0, minimum: 100)
+        let result = project(
+            loans: [loan],
+            loanShare: 1,
+            lumpSums: [LumpSum(amount: 500, month: YearMonth(year: 2026, month: 3))],
+            annualReturn: 0,
+            currentAge: 40,
+            retirementAge: 45
+        )
+        XCTAssertEqual(result.snapshot(at: 2)?.nominal.investments, 100)
+        XCTAssertEqual(result.snapshot(at: 3)?.nominal.investments, 700)
+    }
+
+    func testKeepingAFreedPaymentStillDropsIt() {
+        let loan = makeLoan(balance: 100, rate: 0, minimum: 100)
+        let result = project(
+            loans: [loan],
+            annualReturn: 0,
+            currentAge: 40,
+            retirementAge: 45,
+            chosenFreedSplit: FreedMoneySplit(loanShare: 0, investShare: 0)
+        )
+        XCTAssertEqual(result.snapshot(at: 12)?.nominal.investments, 0)
     }
 
     func testChosenFreedSplitReplacesTheSuggestion() {
@@ -391,7 +464,7 @@ final class ProjectionEngineTests: XCTestCase {
         XCTAssertEqual(result.snapshot(at: 2)?.nominal.investments, 500)
     }
 
-    func testExtraLoanMoneyFollowsTheFreedSplitOnceEveryLoanIsRepaid() {
+    func testExtraLoanMoneyIsInvestedOnceEveryLoanIsRepaid() {
         let loan = makeLoan(balance: 100, rate: 0, minimum: 0)
         let budget = Budget(
             categories: [
@@ -414,8 +487,8 @@ final class ProjectionEngineTests: XCTestCase {
         )
         XCTAssertEqual(result.loanPayoffDate, start)
         XCTAssertEqual(result.snapshot(at: 1)?.nominal.investments, 100)
-        XCTAssertEqual(result.snapshot(at: 2)?.nominal.investments, 260)
-        XCTAssertEqual(result.coastFireDate, YearMonth(year: 2026, month: 3))
+        XCTAssertEqual(result.snapshot(at: 2)?.nominal.investments, 300)
+        XCTAssertEqual(result.coastFireDate, YearMonth(year: 2026, month: 2))
         XCTAssertEqual(result.coastFireDateIfFreedMoneyInvested, YearMonth(year: 2026, month: 2))
     }
 

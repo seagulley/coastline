@@ -164,7 +164,7 @@ public enum ProjectionEngine {
         guard let coastNumber = CoastFireMath.coastNumber(
             yearlySpending: input.goal.yearlySpending,
             withdrawalRate: input.goal.withdrawalRate,
-            nominalAnnualReturn: annualReturn,
+            nominalAnnualReturn: annualReturn - input.assumptions.annualFee,
             inflation: input.assumptions.inflation,
             yearsLeft: CoastFireMath.yearsLeft(goal: input.goal, monthIndex: monthIndex)
         ) else {

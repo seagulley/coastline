@@ -99,8 +99,6 @@ struct NominalSimulator {
 
     /// One month in nominal dollars. Returns interest accrued this month.
     private mutating func step(monthIndex: Int, month: YearMonth) -> Decimal {
-        let allLoansRepaid = !freedLoanIDs.isEmpty && !loans.contains { $0.balance > 0 }
-
         // 1. Update rates. 2. Accrue interest.
         var interestAccrued: Decimal = 0
         for index in loans.indices {
@@ -140,15 +138,9 @@ struct NominalSimulator {
             }
         }
 
-        if allLoansRepaid {
-            // The extra-payment slice has no loan left, so it is freed money like a repaid minimum.
-            let freed = freedShares.allocate(userExtra)
-            investPool = Cents.round(investPool + freed.investing)
-        } else {
-            let unusedUserExtra = applyWaterfall(userExtra)
-            investPool = Cents.round(investPool + unusedUserExtra)
-        }
-        _ = applyWaterfall(freedExtra, sweepRemainder: false)
+        // Money headed to loans is invested once no loan is left to take it.
+        investPool = Cents.round(investPool + applyWaterfall(userExtra))
+        investPool = Cents.round(investPool + applyWaterfall(freedExtra))
 
         // 5. Invest. 6. Grow.
         let grown = (investments + investPool) * growthFactor
@@ -184,8 +176,8 @@ struct NominalSimulator {
         return (loans, amount - loans)
     }
 
-    @discardableResult
-    private mutating func applyWaterfall(_ amount: Decimal, sweepRemainder: Bool = true) -> Decimal {
+    /// Pays loans highest rate first. Returns what is left once every loan is repaid.
+    private mutating func applyWaterfall(_ amount: Decimal) -> Decimal {
         var remaining = max(amount, 0)
         let indexes = loans.indices
             .filter { loans[$0].balance > 0 }
@@ -199,7 +191,7 @@ struct NominalSimulator {
             if remaining <= 0 { break }
             remaining = Cents.round(remaining - pay(remaining, at: index))
         }
-        return sweepRemainder ? remaining : 0
+        return remaining
     }
 
     private mutating func pay(_ amount: Decimal, at index: Int) -> Decimal {
