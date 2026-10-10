@@ -5,25 +5,45 @@ import Foundation
 struct PlanProjectionEngine: ProjectionEngine {
     /// First month of the projection. Defaults to the current calendar month.
     var start: YearMonth
+    /// Produces the good, typical, and bad results. Replacing it does not change any screen.
+    var scenarios: any ScenarioSource
 
-    init(start: YearMonth? = nil) {
+    init(start: YearMonth? = nil, scenarios: any ScenarioSource = FixedReturnScenarios()) {
         if let start {
             self.start = start
         } else {
             let parts = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: Date())
             self.start = YearMonth(year: parts.year ?? 2026, month: parts.month ?? 1)
         }
+        self.scenarios = scenarios
     }
 
     func project(_ plan: UserPlan) -> Projection {
-        guard let template = engineInput(plan, scenario: .typical) else { return .empty }
-        let scenarios = ReturnScenario.allCases.map { scenario in
-            var input = template
-            input.scenario = engineScenario(scenario)
-            let result = CoastlineEngine.ProjectionEngine.project(input)
-            return scenarioProjection(result, scenario: scenario)
-        }
-        return Projection(scenarios: scenarios)
+        guard let input = engineInput(plan, scenario: .typical) else { return .empty }
+        return projection(scenarios.outcomes(for: input))
+    }
+
+    func recommend(_ plan: UserPlan) -> SplitRecommendation? {
+        guard let input = engineInput(plan, scenario: .typical) else { return nil }
+        let recommendation = Recommender.recommend(
+            input,
+            riskToleranceMonths: plan.assumptions.riskToleranceMonths,
+            scenarios: scenarios
+        )
+        return SplitRecommendation(
+            loanShare: recommendation.recommended.loanShare,
+            safestLoanShare: recommendation.safest.loanShare,
+            reason: recommendation.reason,
+            typicalMonthsSooner: recommendation.typicalMonthsSooner,
+            badCaseMonthsBehind: recommendation.badCaseMonthsBehind,
+            projection: projection(recommendation.recommended.outcomes)
+        )
+    }
+
+    private func projection(_ outcomes: ScenarioOutcomes) -> Projection {
+        Projection(scenarios: ReturnScenario.allCases.map { scenario in
+            scenarioProjection(outcomes[engineScenario(scenario)], scenario: scenario)
+        })
     }
 
     private func engineInput(

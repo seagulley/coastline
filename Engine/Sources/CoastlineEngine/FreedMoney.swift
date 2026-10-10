@@ -44,7 +44,7 @@ enum FreedMoney {
             }
         }
         let total = eligible.reduce(Decimal(0)) { $0 + $1.amount }
-        guard total > 0 else { return .none }
+        guard total > 0 else { return .allToInvesting }
         let loans = eligible
             .filter { $0.role == .extraLoanPayment }
             .reduce(Decimal(0)) { $0 + $1.amount }

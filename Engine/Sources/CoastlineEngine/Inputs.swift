@@ -110,7 +110,7 @@ public struct Assumptions: Hashable, Sendable {
     public var inflation: Decimal
     /// Held constant for the whole projection.
     public var primeRate: Decimal
-    /// Annual fund fee, subtracted from the scenario return before monthly growth.
+    /// Annual fund fee, subtracted from the scenario return for monthly growth and for the Coast FIRE check.
     public var annualFee: Decimal
 
     public init(
