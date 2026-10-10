@@ -100,7 +100,12 @@ The name on the Home screen and under the app icon is Coastline.
 ### Change assumptions (sheet over Compare)
 - Good / typical / bad return rates, prime rate, inflation, fees.
 - Fee starts at the fund-type default (e.g. "0.20%, index ETF default"). The user can override it and reset it to the default.
-- Shows break-even: "Paying the loan wins if markets return less than X% a year."
+- Shows break-even: "Paying the loan wins if markets return less than X% a year." The engine computes it (see Rules: Break-even return).
+- Prime rate is typed in, required only when a loan is floating.
+- Opens at half height so Compare stays visible. Each valid edit reruns Compare right away.
+- Assumptions are settings, not a choice of split. Done saves them on the device, and Home updates. Cancel puts Compare back on the assumptions it had. Swipe-to-dismiss is blocked while there are unsaved edits.
+- Done stays disabled while a field needs fixing (e.g. the bad return is above typical, or typical is above good). The break-even is hidden until the fields are valid.
+- The split is still saved only through I'll do this.
 
 ### After choosing
 - Checklist of concrete steps (e.g. loan payment amount, amount to put in TFSA).
