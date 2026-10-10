@@ -145,7 +145,7 @@ struct CompareView: View {
             Text("\(Self.splitSentence(model.customShare, mode: model.mode)) Your plan changes only after you confirm.")
         }
         .sheet(isPresented: $showingAssumptions) {
-            AssumptionsSheet(plan: model.comparedPlan)
+            AssumptionsSheet(model: model, save: app.saveAssumptions)
         }
         .navigationDestination(isPresented: $showingChoice) {
             if let choice {

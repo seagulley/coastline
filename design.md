@@ -100,7 +100,12 @@ The name on the Home screen and under the app icon is Coastline.
 ### Change assumptions (sheet over Compare)
 - Good / typical / bad return rates, prime rate, inflation, fees.
 - Fee starts at the fund-type default (e.g. "0.20%, index ETF default"). The user can override it and reset it to the default.
-- Shows break-even: "Paying the loan wins if markets return less than X% a year."
+- Shows break-even: "Paying the loan wins if markets return less than X% a year." The engine computes it (see Rules: Break-even return).
+- Prime rate is typed in, required only when a loan is floating.
+- Opens at half height so Compare stays visible. Each valid edit reruns Compare right away.
+- Assumptions are settings, not a choice of split. Done saves them on the device, and Home updates. Cancel puts Compare back on the assumptions it had. Swipe-to-dismiss is blocked while there are unsaved edits.
+- Done stays disabled while a field needs fixing (e.g. the bad return is above typical, or typical is above good). The break-even is hidden until the fields are valid.
+- The split is still saved only through I'll do this.
 
 ### After choosing
 - Checklist of concrete steps (e.g. loan payment amount, amount to put in TFSA).
@@ -152,6 +157,7 @@ for each month:
 - **Contributions:** monthly investing rises with inflation by default (configurable to flat).
 - **Lump sum:** treated as a month with extra money.
 - **Future prime rate:** held constant at the current value (MVP).
+- **Break-even return:** the yearly market return, before fees, below which an extra dollar does better paying a loan than invested. Extra money pays the highest-rate loan with a balance first, so the break-even is that loan's rate compounded the way the monthly step charges interest over the next 12 months, plus the fee. No loan balance means no break-even.
 - **Minimum payment:** user-entered from statement; estimated from balance and repayment term until available.
 - **Interest method:** configurable per loan; default = daily accrual, monthly application.
 - **Loan payoff:** the priority profile is not in the MVP. Freed payment is suggested in proportion to the current budget (excluding needs, and excluding the emergency fund if it is full). With no budget, which is every MVP plan until CashOnly (Later), the suggestion is to invest all of it. Setup does not ask for a budget.

@@ -34,8 +34,9 @@ final class CompareModel {
     }
 
     let engine: any ProjectionEngine
-    /// The plan Compare starts from. It is not saved until the user confirms a choice.
-    let plan: UserPlan
+    /// The plan Compare starts from, with any assumptions changed in Change assumptions.
+    /// Its split is not saved until the user confirms a choice.
+    private(set) var plan: UserPlan
 
     var mode: AllocationMode = .everyMonth
     /// The one-time amount. Starts from the plan's first lump sum, when it has one.
@@ -121,6 +122,16 @@ final class CompareModel {
     /// The option matching the slider, which is what I'll do this chooses.
     var chosenOption: Option? {
         options.first { $0.loanShare == customShare }
+    }
+
+    /// The market return, before fees, below which paying the loan wins. From the engine.
+    var breakEvenReturn: Decimal? {
+        engine.breakEvenReturn(comparedPlan)
+    }
+
+    /// Runs every option again on `assumptions`.
+    func useAssumptions(_ assumptions: Assumptions) {
+        plan.assumptions = assumptions
     }
 
     /// Reruns the recommendation for the current inputs and moves the slider to it.
