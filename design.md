@@ -24,7 +24,7 @@ The name on the Home screen and under the app icon is Coastline.
 3. **Coast FIRE date is the unit of value.** Every option shows how it moves the Coast FIRE date.
 4. **The engine does all math.** UI (and later a chatbot) only call the engine and display results. No financial math in views.
 5. **Display in today's dollars.**
-6. **Explain assumptions.** Settings and assumptions get a short plain-language ⓘ explanation. Draft copy is in `assumption-explanations.md`; wire it when Setup and Change assumptions exist.
+6. **Explain assumptions.** Settings and assumptions get a short plain-language ⓘ explanation, shown in a popover beside the control in Setup and Change assumptions. The copy is in `assumption-explanations.md` and `AssumptionInfo.swift`.
 
 ---
 
