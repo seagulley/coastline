@@ -123,6 +123,13 @@ final class AppModel {
         return (before, projection)
     }
 
+    /// Saves assumptions the user changed in Change assumptions. The rest of the saved plan stays as it is.
+    func saveAssumptions(_ assumptions: Assumptions) throws {
+        var updated = plan
+        updated.assumptions = assumptions
+        try apply(updated)
+    }
+
     /// This month's split of the saved plan's monthly money, from the engine.
     var monthlySplit: MonthlySplit? {
         engine.monthlySplit(plan)

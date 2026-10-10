@@ -9,6 +9,9 @@ protocol ProjectionEngine: Sendable {
     func recommend(_ plan: UserPlan, for target: SplitTarget) -> SplitRecommendation?
     /// This month's money split between the extra loan payment and investing. Nil when the plan has no monthly amount.
     func monthlySplit(_ plan: UserPlan) -> MonthlySplit?
+    /// The yearly market return, before fees, below which paying the loan beats investing.
+    /// Nil when the plan cannot be projected or has no loan balance.
+    func breakEvenReturn(_ plan: UserPlan) -> Decimal?
 }
 
 extension ProjectionEngine {
@@ -17,6 +20,10 @@ extension ProjectionEngine {
     }
 
     func monthlySplit(_: UserPlan) -> MonthlySplit? {
+        nil
+    }
+
+    func breakEvenReturn(_: UserPlan) -> Decimal? {
         nil
     }
 }

@@ -59,6 +59,10 @@ struct PlanProjectionEngine: ProjectionEngine {
         return MonthlySplit(loanShare: share, investShare: 1 - share, toLoan: split.loans, toInvesting: split.investing)
     }
 
+    func breakEvenReturn(_ plan: UserPlan) -> Decimal? {
+        engineInput(plan, scenario: .typical).flatMap(BreakEven.annualReturn)
+    }
+
     private func projection(_ outcomes: ScenarioOutcomes) -> Projection {
         Projection(scenarios: ReturnScenario.allCases.map { scenario in
             scenarioProjection(outcomes[engineScenario(scenario)], scenario: scenario)

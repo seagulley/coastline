@@ -152,6 +152,7 @@ for each month:
 - **Contributions:** monthly investing rises with inflation by default (configurable to flat).
 - **Lump sum:** treated as a month with extra money.
 - **Future prime rate:** held constant at the current value (MVP).
+- **Break-even return:** the yearly market return, before fees, below which an extra dollar does better paying a loan than invested. Extra money pays the highest-rate loan with a balance first, so the break-even is that loan's rate compounded the way the monthly step charges interest over the next 12 months, plus the fee. No loan balance means no break-even.
 - **Minimum payment:** user-entered from statement; estimated from balance and repayment term until available.
 - **Interest method:** configurable per loan; default = daily accrual, monthly application.
 - **Loan payoff:** the priority profile is not in the MVP. Freed payment is suggested in proportion to the current budget (excluding needs, and excluding the emergency fund if it is full). With no budget, which is every MVP plan until CashOnly (Later), the suggestion is to invest all of it. Setup does not ask for a budget.
