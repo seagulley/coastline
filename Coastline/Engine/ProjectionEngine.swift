@@ -7,12 +7,26 @@ protocol ProjectionEngine: Sendable {
     /// The recommended split of `target`, chosen with the plan's risk tolerance. Every other split stays as planned.
     /// Nil when the plan cannot be projected or does not contain the target lump sum.
     func recommend(_ plan: UserPlan, for target: SplitTarget) -> SplitRecommendation?
+    /// This month's money split between the extra loan payment and investing. Nil when the plan has no monthly amount.
+    func monthlySplit(_ plan: UserPlan) -> MonthlySplit?
 }
 
 extension ProjectionEngine {
     func recommend(_ plan: UserPlan) -> SplitRecommendation? {
         recommend(plan, for: .everyMonth)
     }
+
+    func monthlySplit(_: UserPlan) -> MonthlySplit? {
+        nil
+    }
+}
+
+/// Amounts for the current month, which are already in today's dollars.
+struct MonthlySplit: Equatable, Sendable {
+    var loanShare: Decimal
+    var investShare: Decimal
+    var toLoan: Decimal
+    var toInvesting: Decimal
 }
 
 struct Projection: Equatable, Sendable {
@@ -48,26 +62,41 @@ struct SplitCandidate: Equatable, Sendable {
 struct ScenarioProjection: Equatable, Sendable {
     var scenario: ReturnScenario
     var coastFireDate: CalendarDate?
+    /// Whole months from the start of the projection to `coastFireDate`. Zero when it is already reached.
+    var monthsUntilCoastFire: Int?
     var coastFireDateIfFreedMoneyInvested: CalendarDate?
     var loanPayoffDate: CalendarDate?
+    /// When each loan reaches zero, and the payment that frees.
+    var loanPayoffs: [PlannedPayoff]
     var totalInterestPaid: Decimal?
     var months: [MonthRecord]
 
     init(
         scenario: ReturnScenario,
         coastFireDate: CalendarDate? = nil,
+        monthsUntilCoastFire: Int? = nil,
         coastFireDateIfFreedMoneyInvested: CalendarDate? = nil,
         loanPayoffDate: CalendarDate? = nil,
+        loanPayoffs: [PlannedPayoff] = [],
         totalInterestPaid: Decimal? = nil,
         months: [MonthRecord] = []
     ) {
         self.scenario = scenario
         self.coastFireDate = coastFireDate
+        self.monthsUntilCoastFire = monthsUntilCoastFire
         self.coastFireDateIfFreedMoneyInvested = coastFireDateIfFreedMoneyInvested
         self.loanPayoffDate = loanPayoffDate
+        self.loanPayoffs = loanPayoffs
         self.totalInterestPaid = totalInterestPaid
         self.months = months
     }
+}
+
+struct PlannedPayoff: Equatable, Sendable {
+    var loanID: UUID
+    var month: YearMonth
+    /// The minimum payment that stops once the loan is repaid. It is due in `month`.
+    var payment: Decimal
 }
 
 enum ReturnScenario: String, Codable, Equatable, Sendable, CaseIterable {

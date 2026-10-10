@@ -4,7 +4,10 @@ import SwiftUI
 /// Nothing is saved until the user confirms I'll do this.
 struct CompareView: View {
     let app: AppModel
+    /// Scrolls to the split slider once the comparison is ready. Set by Home's Adjust.
+    var showSplit = false
     @State private var model: CompareModel
+    @State private var scrolledToSplit = false
     @State private var showingAssumptions = false
     @State private var confirming = false
     @State private var choice: Choice?
@@ -12,14 +15,30 @@ struct CompareView: View {
     @State private var chooseError: String?
     @FocusState private var editingAmount: Bool
 
-    init(app: AppModel) {
+    init(app: AppModel, showSplit: Bool = false) {
         self.app = app
+        self.showSplit = showSplit
         let today = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: Date())
         let startMonth = YearMonth(year: today.year ?? 2026, month: today.month ?? 1)
         _model = State(initialValue: CompareModel(engine: app.engine, plan: app.shownPlan, startMonth: startMonth))
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
+            list
+                .onChange(of: model.currentRecommendation != nil, initial: true) { _, ready in
+                    guard showSplit, ready, !scrolledToSplit else { return }
+                    scrolledToSplit = true
+                    withAnimation {
+                        proxy.scrollTo(Self.splitSectionID, anchor: .center)
+                    }
+                }
+        }
+    }
+
+    private static let splitSectionID = "split"
+
+    private var list: some View {
         List {
             Section {
                 Picker("Compare", selection: $model.mode) {
@@ -73,6 +92,7 @@ struct CompareView: View {
                         .accessibilityValue("\(PlanFormatting.percent(model.customShare)) to the loan")
                     }
                 }
+                .id(Self.splitSectionID)
             } else if model.isLoading {
                 Section {
                     ProgressView("Comparing splits")

@@ -57,6 +57,22 @@ enum PlanFormatting {
         format(date, as: "MMMM yyyy")
     }
 
+    static func monthAndYear(_ month: YearMonth) -> String {
+        monthAndYear(CalendarDate(year: month.year, month: month.month, day: 1))
+    }
+
+    /// "about 7 years" from the engine's whole-month count. Under a year it counts months.
+    static func timeAway(months: Int) -> String {
+        if months <= 0 {
+            return "Reached now"
+        }
+        if months < 12 {
+            return months == 1 ? "about 1 month away" : "about \(months) months away"
+        }
+        let years = (Double(months) / 12).rounded()
+        return years == 1 ? "about 1 year away" : "about \(Int(years)) years away"
+    }
+
     /// "Nov 2033", for narrow table columns.
     static func shortMonthAndYear(_ date: CalendarDate) -> String {
         format(date, as: "MMM yyyy")

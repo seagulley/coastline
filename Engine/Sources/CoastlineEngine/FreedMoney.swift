@@ -12,8 +12,13 @@ struct FreedShares: Equatable {
         self.investShare = investShare
     }
 
-    init(_ split: FreedMoneySplit) {
-        self.init(loanShare: split.loanShare, investShare: split.investShare)
+    init(_ answer: FreedPaymentAnswer) {
+        switch answer {
+        case .invest:
+            self = .allToInvesting
+        case .keep:
+            self = .none
+        }
     }
 
     /// Splits `amount` into loan and investing portions. Rounding stays inside the original amount.

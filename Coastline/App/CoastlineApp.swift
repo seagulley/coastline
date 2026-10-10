@@ -31,7 +31,7 @@ struct CoastlineApp: App {
                     showingSetup = false
                 }
             } else {
-                RootView(model: model) {
+                HomeView(model: model) {
                     showingSetup = true
                 }
             }

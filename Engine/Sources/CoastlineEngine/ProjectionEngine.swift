@@ -4,15 +4,20 @@ public enum ProjectionEngine {
     public static func project(_ input: ProjectionInput) -> ProjectionResult {
         let annualReturn = input.assumptions.annualReturn(for: input.scenario)
         let suggested = FreedMoney.suggestedShares(from: input.budget)
-        let applied = input.chosenFreedMoneySplit.map(FreedShares.init) ?? suggested
-        let primary = simulate(input, annualReturn: annualReturn, freedShares: applied)
-        let investedFreed = simulate(input, annualReturn: annualReturn, freedShares: .allToInvesting)
+        let primary = simulate(input, annualReturn: annualReturn) { loan in
+            input.freedPaymentAnswers[loan.id].map(FreedShares.init) ?? suggested
+        }
+        let investedFreed = simulate(input, annualReturn: annualReturn) { _ in .allToInvesting }
         let presented = present(primary.months, input: input, annualReturn: annualReturn)
         let investedCoastDate = present(investedFreed.months, input: input, annualReturn: annualReturn).coastFireDate
 
+        let payments = Dictionary(
+            input.loans.map { ($0.id, resolvedMinimum($0, prime: input.assumptions.primeRate)) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let payoffMonths = primary.payoffMonthIndex.compactMap { id, monthIndex -> LoanPayoff? in
             guard let month = primary.months.first(where: { $0.monthIndex == monthIndex })?.month else { return nil }
-            return LoanPayoff(id: id, month: month)
+            return LoanPayoff(id: id, month: month, payment: payments[id] ?? 0)
         }
         .sorted { $0.id.uuidString < $1.id.uuidString }
 
@@ -46,7 +51,7 @@ public enum ProjectionEngine {
     private static func simulate(
         _ input: ProjectionInput,
         annualReturn: Decimal,
-        freedShares: FreedShares
+        freedShares: (Loan) -> FreedShares
     ) -> (months: [NominalMonth], payoffMonthIndex: [UUID: Int]) {
         let netAnnual = annualReturn - input.annualFee
         let growthBase = 1 + netAnnual
@@ -63,7 +68,8 @@ public enum ProjectionEngine {
                 minimumPayment: resolvedMinimum(loan, prime: input.assumptions.primeRate),
                 interestMethod: loan.interestMethod,
                 order: offset,
-                countsTowardPayoff: balance > 0
+                countsTowardPayoff: balance > 0,
+                freedShares: freedShares(loan)
             )
         }
         var simulator = NominalSimulator(
@@ -77,7 +83,6 @@ public enum ProjectionEngine {
             inflation: input.assumptions.inflation,
             primeRate: input.assumptions.primeRate,
             growthFactor: growthFactor,
-            freedShares: freedShares,
             horizonMonths: horizon
         )
         return simulator.run()
