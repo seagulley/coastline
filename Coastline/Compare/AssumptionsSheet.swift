@@ -24,20 +24,20 @@ struct AssumptionsSheet: View {
                 breakEvenSection
 
                 Section("Yearly returns, before fees") {
-                    RateField("Good market", text: $draft.goodReturnPercent, keyboard: .numbersAndPunctuation)
-                    RateField("Typical market", text: $draft.typicalReturnPercent, keyboard: .numbersAndPunctuation)
-                    RateField("Bad market", text: $draft.badReturnPercent, keyboard: .numbersAndPunctuation)
+                    RateField("Good market", text: $draft.goodReturnPercent, keyboard: .numbersAndPunctuation, info: .goodReturn)
+                    RateField("Typical market", text: $draft.typicalReturnPercent, keyboard: .numbersAndPunctuation, info: .typicalReturn)
+                    RateField("Bad market", text: $draft.badReturnPercent, keyboard: .numbersAndPunctuation, info: .badReturn)
                 }
 
                 Section {
-                    RateField("Prime rate", text: $draft.primeRatePercent, prompt: "e.g. 4.95")
-                    RateField("Inflation", text: $draft.inflationPercent, keyboard: .numbersAndPunctuation)
+                    RateField("Prime rate", text: $draft.primeRatePercent, prompt: "e.g. 4.95", info: .primeRate)
+                    RateField("Inflation", text: $draft.inflationPercent, keyboard: .numbersAndPunctuation, info: .inflation)
                 } footer: {
                     Text("Type in your lender's current prime rate. The projection keeps it at this number.")
                 }
 
                 Section {
-                    RateField("Yearly fund fee", text: $draft.feePercent, prompt: SetupNumber.percentText(defaultFee))
+                    RateField("Yearly fund fee", text: $draft.feePercent, prompt: SetupNumber.percentText(defaultFee), info: .fee)
                     if !draft.usesDefaultFee {
                         Button("Reset to \(fundType.lowercaseName) default") {
                             draft.useDefaultFee()
@@ -48,7 +48,11 @@ struct AssumptionsSheet: View {
                 }
 
                 Section {
-                    LabeledContent("Risk tolerance", value: months(model.plan.assumptions.riskToleranceMonths))
+                    LabeledContent {
+                        Text(months(model.plan.assumptions.riskToleranceMonths))
+                    } label: {
+                        InfoLabel("Risk tolerance", info: .riskTolerance)
+                    }
                 } footer: {
                     Text("A split can be recommended when its bad-market Coast FIRE date is at most this much later than the safest split.")
                 }
@@ -159,19 +163,29 @@ private struct RateField: View {
     @Binding var text: String
     let prompt: String
     let keyboard: UIKeyboardType
+    let info: AssumptionInfo
 
-    init(_ title: String, text: Binding<String>, prompt: String = "%", keyboard: UIKeyboardType = .decimalPad) {
+    init(
+        _ title: String,
+        text: Binding<String>,
+        prompt: String = "%",
+        keyboard: UIKeyboardType = .decimalPad,
+        info: AssumptionInfo
+    ) {
         self.title = title
         _text = text
         self.prompt = prompt
         self.keyboard = keyboard
+        self.info = info
     }
 
     var body: some View {
-        LabeledContent("\(title) (%)") {
+        LabeledContent {
             TextField(prompt, text: $text)
                 .multilineTextAlignment(.trailing)
                 .keyboardType(keyboard)
+        } label: {
+            InfoLabel("\(title) (%)", info: info)
         }
     }
 }
