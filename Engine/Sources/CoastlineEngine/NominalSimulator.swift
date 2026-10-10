@@ -27,7 +27,7 @@ struct NominalSimulator {
     private let monthlyAmount: Decimal
     private let loanShare: Decimal
     private let contributionsGrowWithInflation: Bool
-    private let lumpsByMonth: [YearMonth: Decimal]
+    private let lumpsByMonth: [YearMonth: [LumpSum]]
     private var investments: Decimal
     private let inflation: Decimal
     private let primeRate: Decimal
@@ -66,9 +66,9 @@ struct NominalSimulator {
         self.freedShares = freedShares
         self.horizonMonths = max(horizonMonths, 0)
 
-        var lumps: [YearMonth: Decimal] = [:]
+        var lumps: [YearMonth: [LumpSum]] = [:]
         for lump in lumpSums where lump.amount > 0 {
-            lumps[lump.month, default: 0] += lump.amount
+            lumps[lump.month, default: []].append(lump)
         }
         self.lumpsByMonth = lumps
     }
@@ -119,8 +119,9 @@ struct NominalSimulator {
         var userExtra = monthlyLoan
         var freedExtra = recurringLoanExtra
 
-        if let lump = lumpsByMonth[month] {
-            let (lumpLoan, lumpInvest) = split(lump, loanShare: loanShare)
+        for lump in lumpsByMonth[month] ?? [] {
+            let share = lump.loanShare.map { min(max($0, 0), 1) } ?? loanShare
+            let (lumpLoan, lumpInvest) = split(lump.amount, loanShare: share)
             userExtra = Cents.round(userExtra + lumpLoan)
             investPool = Cents.round(investPool + lumpInvest)
         }

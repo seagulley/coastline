@@ -23,10 +23,19 @@ struct PlanProjectionEngine: ProjectionEngine {
         return projection(scenarios.outcomes(for: input))
     }
 
-    func recommend(_ plan: UserPlan) -> SplitRecommendation? {
+    func recommend(_ plan: UserPlan, for target: SplitTarget) -> SplitRecommendation? {
         guard let input = engineInput(plan, scenario: .typical) else { return nil }
+        let engineTarget: CoastlineEngine.SplitTarget
+        switch target {
+        case .everyMonth:
+            engineTarget = .monthly
+        case .lumpSum(let id):
+            guard input.lumpSums.contains(where: { $0.id == id }) else { return nil }
+            engineTarget = .lumpSum(id: id)
+        }
         let recommendation = Recommender.recommend(
             input,
+            target: engineTarget,
             riskToleranceMonths: plan.assumptions.riskToleranceMonths,
             scenarios: scenarios
         )
@@ -36,7 +45,10 @@ struct PlanProjectionEngine: ProjectionEngine {
             reason: recommendation.reason,
             typicalMonthsSooner: recommendation.typicalMonthsSooner,
             badCaseMonthsBehind: recommendation.badCaseMonthsBehind,
-            projection: projection(recommendation.recommended.outcomes)
+            projection: projection(recommendation.recommended.outcomes),
+            candidates: recommendation.candidates.map { candidate in
+                SplitCandidate(loanShare: candidate.loanShare, projection: projection(candidate.outcomes))
+            }
         )
     }
 
@@ -75,7 +87,7 @@ struct PlanProjectionEngine: ProjectionEngine {
         }
         let lumpSums = plan.money.lumpSums.compactMap { lump -> CoastlineEngine.LumpSum? in
             guard let month = engineMonth(year: lump.month.year, month: lump.month.month) else { return nil }
-            return CoastlineEngine.LumpSum(amount: lump.amount, month: month)
+            return CoastlineEngine.LumpSum(id: lump.id, amount: lump.amount, month: month, loanShare: lump.loanShare)
         }
 
         return CoastlineEngine.ProjectionInput(

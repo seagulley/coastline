@@ -2,7 +2,7 @@ import Foundation
 
 /// One candidate split and its good, typical, and bad outcomes.
 public struct SplitOutcome: Hashable, Sendable {
-    /// Fraction of allocatable money sent to extra loan payments, from 0 to 1.
+    /// Fraction of the varied money (the monthly amount or one lump sum) sent to extra loan payments, from 0 to 1.
     public var loanShare: Decimal
     public var outcomes: ScenarioOutcomes
 
@@ -58,17 +58,20 @@ public enum Recommender {
 
     public static let candidateLoanShares: [Decimal] = (0...10).map { Decimal($0) / 10 }
 
-    /// `input.loanShare` and `input.scenario` are replaced for each candidate and scenario.
+    /// The loan share of `target` and `input.scenario` are replaced for each candidate and scenario.
+    /// Every other split in `input` stays as given.
     public static func recommend(
         _ input: ProjectionInput,
+        target: SplitTarget = .monthly,
         riskToleranceMonths: Int = defaultRiskToleranceMonths,
         scenarios: any ScenarioSource = FixedReturnScenarios()
     ) -> Recommendation {
         let tolerance = max(riskToleranceMonths, 0)
         let candidates = candidateLoanShares.map { share in
-            var input = input
-            input.loanShare = share
-            return SplitOutcome(loanShare: share, outcomes: scenarios.outcomes(for: input))
+            SplitOutcome(
+                loanShare: share,
+                outcomes: scenarios.outcomes(for: input.applyingLoanShare(share, to: target))
+            )
         }
 
         let safest = earliest(candidates, by: \.badCaseCoastFireDate)

@@ -30,6 +30,11 @@ struct RootView: View {
                                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                         }
                     }
+                    Section {
+                        NavigationLink("Compare paying the loan with investing") {
+                            CompareView(app: model)
+                        }
+                    }
                 }
 
                 Section("On this device") {
@@ -42,7 +47,7 @@ struct RootView: View {
                         Text("Nothing is saved yet.")
                     }
                     if let chosen = model.plan.chosenPlan, model.hasStoredPlan {
-                        Text("Chosen split: \(PlanFormatting.percent(chosen.loanShare)) extra to the loan, every month")
+                        Text("Chosen split: \(PlanFormatting.percent(chosen.loanShare)) extra to the loan, \(chosen.mode == .oneTime ? "of the one-time money" : "every month")")
                     }
                     if model.usingStarterPlan || !model.hasStoredPlan {
                         Button("Save this plan on this device") {

@@ -108,12 +108,30 @@ struct LumpSum: Codable, Equatable, Identifiable, Sendable {
     var id: UUID
     var amount: Decimal
     var month: YearMonth
+    /// Share of this lump sum that goes to an extra loan payment. Nil follows the monthly split.
+    var loanShare: Decimal?
 }
 
 /// Share of allocatable money that goes to an extra loan payment, from 0 to 1.
 /// The rest is invested. Nil until a split is suggested or chosen.
 struct AllocationSplit: Codable, Equatable, Sendable {
     var loanShare: Decimal?
+}
+
+extension UserPlan {
+    /// The same plan with `share` going to the loan from the monthly amount or from one lump sum.
+    func applyingLoanShare(_ share: Decimal, to target: SplitTarget) -> UserPlan {
+        var plan = self
+        switch target {
+        case .everyMonth:
+            plan.split.loanShare = share
+        case .lumpSum(let id):
+            if let index = plan.money.lumpSums.firstIndex(where: { $0.id == id }) {
+                plan.money.lumpSums[index].loanShare = share
+            }
+        }
+        return plan
+    }
 }
 
 struct Investments: Codable, Equatable, Sendable {
@@ -163,11 +181,33 @@ struct ChosenPlan: Codable, Equatable, Sendable {
     var mode: AllocationMode
     var loanShare: Decimal
     var chosenAt: Date
+    /// The lump sum a one-time choice applies to.
+    var lumpSumID: UUID?
 }
 
 enum AllocationMode: String, Codable, Sendable {
     case everyMonth
     case oneTime
+}
+
+/// The money a split applies to: the monthly amount, or one lump sum.
+enum SplitTarget: Hashable, Sendable {
+    case everyMonth
+    case lumpSum(id: UUID)
+
+    var mode: AllocationMode {
+        switch self {
+        case .everyMonth: .everyMonth
+        case .lumpSum: .oneTime
+        }
+    }
+
+    var lumpSumID: UUID? {
+        switch self {
+        case .everyMonth: nil
+        case .lumpSum(let id): id
+        }
+    }
 }
 
 struct YearMonth: Codable, Equatable, Hashable, Sendable {
