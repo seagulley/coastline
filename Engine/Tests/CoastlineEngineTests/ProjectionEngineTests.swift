@@ -164,6 +164,40 @@ final class ProjectionEngineTests: XCTestCase {
         XCTAssertEqual(result.snapshot(at: 4)?.nominal.balance(for: loan.id), 975)
     }
 
+    func testALumpSumCanHaveItsOwnShare() {
+        let loan = makeLoan(balance: 1000, rate: 0, minimum: 0)
+        let march = YearMonth(year: 2026, month: 3)
+        let result = project(
+            loans: [loan],
+            monthlyAmount: 100,
+            loanShare: 0,
+            growContributions: false,
+            lumpSums: [
+                LumpSum(amount: 200, month: march, loanShare: decimal("0.6")),
+                LumpSum(amount: 100, month: march),
+            ],
+            annualReturn: 0,
+            retirementAge: 31
+        )
+        XCTAssertEqual(result.snapshot(at: 3)?.nominal.balance(for: loan.id), 880)
+        XCTAssertEqual(result.snapshot(at: 3)?.nominal.investments, 300 + 80 + 100)
+    }
+
+    func testApplyingAShareToALumpSumLeavesTheMonthlySplit() {
+        let lump = LumpSum(amount: 500, month: start)
+        let input = makeInput(loanShare: decimal("0.3"), lumpSums: [lump])
+
+        let monthly = input.applyingLoanShare(decimal("0.7"), to: .monthly)
+        XCTAssertEqual(monthly.loanShare, decimal("0.7"))
+        XCTAssertNil(monthly.lumpSums[0].loanShare)
+
+        let oneTime = input.applyingLoanShare(decimal("0.7"), to: .lumpSum(id: lump.id))
+        XCTAssertEqual(oneTime.loanShare, decimal("0.3"))
+        XCTAssertEqual(oneTime.lumpSums[0].loanShare, decimal("0.7"))
+
+        XCTAssertEqual(input.applyingLoanShare(1, to: .lumpSum(id: UUID())), input)
+    }
+
     func testInvestingRisesWithInflationAndCanStayFlat() {
         let growing = project(monthlyAmount: 100, loanShare: 0, inflation: 1, annualReturn: 0, retirementAge: 33)
         let flat = project(
@@ -555,8 +589,52 @@ final class ProjectionEngineTests: XCTestCase {
         budget: Budget = Budget(),
         chosenFreedSplit: FreedMoneySplit? = nil
     ) -> ProjectionResult {
+        ProjectionEngine.project(makeInput(
+            start: start,
+            loans: loans,
+            monthlyAmount: monthlyAmount,
+            loanShare: loanShare,
+            growContributions: growContributions,
+            lumpSums: lumpSums,
+            investments: investments,
+            inflation: inflation,
+            prime: prime,
+            annualReturn: annualReturn,
+            fee: fee,
+            fundType: fundType,
+            spending: spending,
+            withdrawal: withdrawal,
+            currentAge: currentAge,
+            retirementAge: retirementAge,
+            scenario: scenario,
+            budget: budget,
+            chosenFreedSplit: chosenFreedSplit
+        ))
+    }
+
+    private func makeInput(
+        start: YearMonth? = nil,
+        loans: [Loan] = [],
+        monthlyAmount: Decimal = 0,
+        loanShare: Decimal = 0,
+        growContributions: Bool = true,
+        lumpSums: [LumpSum] = [],
+        investments: Decimal = 0,
+        inflation: Decimal = 0,
+        prime: Decimal = 0,
+        annualReturn: Decimal? = nil,
+        fee: Decimal? = 0,
+        fundType: FundType = .indexETF,
+        spending: Decimal = 40000,
+        withdrawal: Decimal = 4 / Decimal(100),
+        currentAge: Int = 30,
+        retirementAge: Int = 65,
+        scenario: ProjectionScenario = .typical,
+        budget: Budget = Budget(),
+        chosenFreedSplit: FreedMoneySplit? = nil
+    ) -> ProjectionInput {
         let returns = annualReturn ?? Assumptions.defaultTypicalAnnualReturn
-        let input = ProjectionInput(
+        return ProjectionInput(
             start: start ?? self.start,
             loans: loans,
             monthlyAmount: monthlyAmount,
@@ -582,7 +660,6 @@ final class ProjectionEngineTests: XCTestCase {
             budget: budget,
             chosenFreedMoneySplit: chosenFreedSplit
         )
-        return ProjectionEngine.project(input)
     }
 
     private func makeLoan(

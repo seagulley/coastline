@@ -138,6 +138,27 @@ final class RecommendationTests: XCTestCase {
         )
     }
 
+    func testOneTimeCandidatesVaryOnlyTheLumpSum() {
+        let lump = LumpSum(amount: 5000, month: start)
+        var input = makeInput(loans: [makeLoan(balance: 20000, rate: decimal("0.20"), minimum: 400)])
+        input.loanShare = decimal("0.3")
+        input.lumpSums = [lump]
+        let source = RecordingScenarios()
+        let recommendation = Recommender.recommend(input, target: .lumpSum(id: lump.id), scenarios: source)
+
+        XCTAssertEqual(source.inputs.map(\.loanShare), Array(repeating: decimal("0.3"), count: 11))
+        XCTAssertEqual(source.inputs.compactMap { $0.lumpSums[0].loanShare }, Recommender.candidateLoanShares)
+        XCTAssertEqual(recommendation.candidates.map(\.loanShare), Recommender.candidateLoanShares)
+    }
+
+    func testAHighRateLoanWinsALumpSum() {
+        let lump = LumpSum(amount: 5000, month: start)
+        var input = makeInput(loans: [makeLoan(balance: 20000, rate: decimal("0.20"), minimum: 400)])
+        input.lumpSums = [lump]
+        let recommendation = Recommender.recommend(input, target: .lumpSum(id: lump.id))
+        XCTAssertGreaterThan(recommendation.recommended.loanShare, 0)
+    }
+
     func testAHighRateLoanCanWinAnExtraPayment() {
         let loan = makeLoan(balance: 20000, rate: decimal("0.20"), minimum: 400)
         let recommendation = Recommender.recommend(makeInput(loans: [loan]))
@@ -185,6 +206,16 @@ final class RecommendationTests: XCTestCase {
 
     private func decimal(_ value: String) -> Decimal {
         Decimal(string: value)!
+    }
+}
+
+/// Runs the fixed returns and keeps every input it was asked for.
+private final class RecordingScenarios: ScenarioSource, @unchecked Sendable {
+    private(set) var inputs: [ProjectionInput] = []
+
+    func outcomes(for input: ProjectionInput) -> ScenarioOutcomes {
+        inputs.append(input)
+        return FixedReturnScenarios().outcomes(for: input)
     }
 }
 

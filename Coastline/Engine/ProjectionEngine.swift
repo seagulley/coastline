@@ -1,20 +1,32 @@
 import Foundation
 
 /// The only way a screen obtains a projection. `PlanProjectionEngine` does the financial math.
-protocol ProjectionEngine {
+/// Sendable so screens can run it off the main thread.
+protocol ProjectionEngine: Sendable {
     func project(_ plan: UserPlan) -> Projection
-    /// The recommended split, chosen with the plan's risk tolerance. Nil when the plan cannot be projected.
-    func recommend(_ plan: UserPlan) -> SplitRecommendation?
+    /// The recommended split of `target`, chosen with the plan's risk tolerance. Every other split stays as planned.
+    /// Nil when the plan cannot be projected or does not contain the target lump sum.
+    func recommend(_ plan: UserPlan, for target: SplitTarget) -> SplitRecommendation?
+}
+
+extension ProjectionEngine {
+    func recommend(_ plan: UserPlan) -> SplitRecommendation? {
+        recommend(plan, for: .everyMonth)
+    }
 }
 
 struct Projection: Equatable, Sendable {
     var scenarios: [ScenarioProjection]
 
     static let empty = Projection(scenarios: [])
+
+    func scenario(_ scenario: ReturnScenario) -> ScenarioProjection? {
+        scenarios.first { $0.scenario == scenario }
+    }
 }
 
 struct SplitRecommendation: Equatable, Sendable {
-    /// Share of allocatable money sent to an extra loan payment, from 0 to 1.
+    /// Share of the target money sent to an extra loan payment, from 0 to 1.
     var loanShare: Decimal
     /// The split with the earliest bad-case Coast FIRE date.
     var safestLoanShare: Decimal
@@ -23,6 +35,13 @@ struct SplitRecommendation: Equatable, Sendable {
     var typicalMonthsSooner: Int?
     var badCaseMonthsBehind: Int?
     /// Good, typical, and bad scenarios for the recommended split.
+    var projection: Projection
+    /// Every split the recommendation compared, lowest loan share first.
+    var candidates: [SplitCandidate]
+}
+
+struct SplitCandidate: Equatable, Sendable {
+    var loanShare: Decimal
     var projection: Projection
 }
 
@@ -84,7 +103,7 @@ struct UnimplementedProjectionEngine: ProjectionEngine {
         .empty
     }
 
-    func recommend(_: UserPlan) -> SplitRecommendation? {
+    func recommend(_: UserPlan, for _: SplitTarget) -> SplitRecommendation? {
         nil
     }
 }

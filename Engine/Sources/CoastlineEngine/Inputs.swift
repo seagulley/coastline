@@ -78,14 +78,25 @@ public struct Loan: Identifiable, Hashable, Sendable {
     }
 }
 
-public struct LumpSum: Hashable, Sendable {
+public struct LumpSum: Identifiable, Hashable, Sendable {
+    public var id: UUID
     public var amount: Decimal
     public var month: YearMonth
+    /// Fraction of this lump sum sent to extra loan payments. Nil follows `ProjectionInput.loanShare`.
+    public var loanShare: Decimal?
 
-    public init(amount: Decimal, month: YearMonth) {
+    public init(id: UUID = UUID(), amount: Decimal, month: YearMonth, loanShare: Decimal? = nil) {
+        self.id = id
         self.amount = amount
         self.month = month
+        self.loanShare = loanShare
     }
+}
+
+/// The split Compare varies: the monthly amount, or one lump sum.
+public enum SplitTarget: Hashable, Sendable {
+    case monthly
+    case lumpSum(id: UUID)
 }
 
 public struct Investments: Hashable, Sendable {
@@ -193,7 +204,8 @@ public struct ProjectionInput: Hashable, Sendable {
     /// When true, the investing slice of `monthlyAmount` rises with inflation. Loan payments stay flat.
     public var contributionsGrowWithInflation: Bool
     public var lumpSums: [LumpSum]
-    /// Fraction of `monthlyAmount` and of each lump sum that goes to extra loan payments. The rest is invested.
+    /// Fraction of `monthlyAmount`, and of each lump sum without its own share, that goes to extra loan payments.
+    /// The rest is invested.
     public var loanShare: Decimal
     public var investments: Investments
     public var goal: CoastFireGoal
@@ -236,5 +248,20 @@ public struct ProjectionInput: Hashable, Sendable {
     /// the fee the user set, or the fund type's default.
     public var annualFee: Decimal {
         assumptions.annualFee ?? investments.fundType.defaultAnnualFee
+    }
+
+    /// The same input with `share` sent to loans from the monthly amount or from one lump sum.
+    /// A lump sum that is not in `lumpSums` leaves the input unchanged.
+    public func applyingLoanShare(_ share: Decimal, to target: SplitTarget) -> ProjectionInput {
+        var input = self
+        switch target {
+        case .monthly:
+            input.loanShare = share
+        case .lumpSum(let id):
+            if let index = input.lumpSums.firstIndex(where: { $0.id == id }) {
+                input.lumpSums[index].loanShare = share
+            }
+        }
+        return input
     }
 }

@@ -30,6 +30,26 @@ final class PlanProjectionEngineTests: XCTestCase {
         XCTAssertEqual(recommendation.projection, engine.project(recommended))
     }
 
+    func testOneTimeRecommendationSplitsOnlyTheLumpSum() {
+        let engine = PlanProjectionEngine(start: start)
+        var plan = UserPlan.starter
+        plan.loans[0].balance = 20000
+        plan.loans[0].rate = .fixed(annualRate: planDecimal("0.20"))
+        let lump = LumpSum(id: UUID(), amount: 5000, month: start, loanShare: nil)
+        plan.money.lumpSums = [lump]
+
+        let recommendation = try! XCTUnwrap(engine.recommend(plan, for: .lumpSum(id: lump.id)))
+        XCTAssertGreaterThan(recommendation.loanShare, 0)
+        XCTAssertEqual(recommendation.candidates.map(\.loanShare), (0...10).map { Decimal($0) / 10 })
+        XCTAssertEqual(
+            recommendation.projection,
+            engine.project(plan.applyingLoanShare(recommendation.loanShare, to: .lumpSum(id: lump.id)))
+        )
+        XCTAssertEqual(plan.split.loanShare, 0)
+
+        XCTAssertNil(engine.recommend(plan, for: .lumpSum(id: UUID())))
+    }
+
     func testRecommendationUsesThePlanRiskTolerance() {
         let source = DatedScenarios(typicalByTenths: [2: 0], badByTenths: [2: 13, 6: 0])
         let engine = PlanProjectionEngine(start: start, scenarios: source)

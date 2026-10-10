@@ -114,7 +114,7 @@ The name on the Home screen and under the app icon is Coastline.
 ### Inputs
 - **Loans** (per loan): optional name (for display, e.g. the Home payoff item), balance, disbursed before/after July 1 2023, rate type (floating/fixed), rate, interest start date, minimum payment, interest method
 - **Money:** monthly amount to allocate, lump sums (amount + month)
-- **Split:** % to extra loan payment vs. investing
+- **Split:** % to extra loan payment vs. investing. A lump sum can carry its own split, set by Compare's One time mode; otherwise it follows the monthly split.
 - **Investments:** current balance, fund type (sets the default fee)
 - **Coast FIRE goal:** current age, retirement age, yearly retirement spending (today's dollars), withdrawal rate
 - **Assumptions:** good/typical/bad annual return (defaults 3% / 6.5% / 10%), inflation, prime rate, annual fee (default from fund type: index ETF **0.20%**, mutual fund **2.00%**)
@@ -188,7 +188,8 @@ Coast FIRE reached when invested balance (today's dollars) >= coastNumber
 
 ### Recommendation rule (balanced)
 ```
-1. Candidates: loan share from 0% to 100% in 10% steps
+1. Candidates: loan share from 0% to 100% in 10% steps, of the monthly amount (Every month)
+   or of one lump sum (One time); every other split stays as planned
 2. Simulate every candidate in good / typical / bad scenarios
 3. safest = candidate with the earliest bad-case Coast FIRE date
 4. allowed = candidates whose bad-case date <= safest.badCaseDate + riskTolerance
