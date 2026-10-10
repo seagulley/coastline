@@ -59,6 +59,24 @@ final class AppModel {
         showProjection(for: plan)
     }
 
+    /// Saves what Setup collected. Until the user chooses a split, the plan uses the engine's
+    /// recommended split as a suggestion, which is returned for display. With no loans, everything is invested.
+    @discardableResult
+    func finishSetup(_ entered: UserPlan) throws -> SplitRecommendation? {
+        var plan = entered
+        var recommendation: SplitRecommendation?
+        if plan.chosenPlan == nil {
+            if plan.loans.isEmpty {
+                plan.split.loanShare = 0
+            } else if let recommended = engine.recommend(plan) {
+                plan.split.loanShare = recommended.loanShare
+                recommendation = recommended
+            }
+        }
+        try apply(plan)
+        return recommendation
+    }
+
     /// The plan behind `projection`: the saved plan, or the starter plan when the saved one cannot be projected.
     var shownPlan: UserPlan {
         usingStarterPlan ? .starter : plan

@@ -71,6 +71,8 @@ struct UserPlan: Codable, Equatable, Sendable {
 
 struct Loan: Codable, Equatable, Identifiable, Sendable {
     var id: UUID
+    /// What the user calls the loan, e.g. "Student loan". Optional.
+    var name: String?
     var balance: Decimal
     /// Disbursed before or after July 1, 2023.
     var disbursement: Disbursement
@@ -157,7 +159,7 @@ struct Assumptions: Codable, Equatable, Sendable {
     var goodAnnualReturn: Decimal
     var inflation: Decimal?
     var primeRate: Decimal?
-    /// Annual fee for the fund the user holds. Depends on fund type once it is set.
+    /// Annual fee the user set for their fund. Nil uses the fund type's default.
     var annualFee: Decimal?
     /// How many months a candidate may trail the safest bad-case Coast FIRE date and still be eligible.
     var riskToleranceMonths: Int

@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Shell until Setup and Home exist. It shows the engine's good, typical, and bad scenarios.
+/// Shell until Home exists. It shows the engine's good, typical, and bad scenarios.
 struct RootView: View {
     @Bindable var model: AppModel
+    let runSetup: () -> Void
     @State private var saveError: String?
 
     var body: some View {
@@ -67,6 +68,11 @@ struct RootView: View {
             }
             .navigationTitle("Coastline")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Setup", action: runSetup)
+                }
+            }
         }
     }
 }

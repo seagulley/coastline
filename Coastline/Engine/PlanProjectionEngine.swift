@@ -99,7 +99,7 @@ struct PlanProjectionEngine: ProjectionEngine {
             loanShare: plan.split.loanShare ?? 0,
             investments: CoastlineEngine.Investments(
                 balance: plan.investments.balance ?? 0,
-                fundType: plan.investments.fundType == .mutualFund ? .mutualFund : .indexETF
+                fundType: (plan.investments.fundType ?? .indexETF).engineFundType
             ),
             goal: CoastlineEngine.CoastFireGoal(
                 currentAge: currentAge,
@@ -113,7 +113,7 @@ struct PlanProjectionEngine: ProjectionEngine {
                 badAnnualReturn: plan.assumptions.badAnnualReturn,
                 inflation: inflation,
                 primeRate: plan.assumptions.primeRate ?? 0,
-                annualFee: plan.assumptions.annualFee ?? 0
+                annualFee: plan.assumptions.annualFee
             ),
             scenario: scenario,
             budget: CoastlineEngine.Budget(
@@ -202,5 +202,19 @@ struct PlanProjectionEngine: ProjectionEngine {
 
     private func clampedMonth(_ month: Int) -> Int {
         min(max(month, 1), 12)
+    }
+}
+
+extension FundType {
+    /// The engine's fee for this fund type, used when the user has not set a fee.
+    var defaultAnnualFee: Decimal {
+        engineFundType.defaultAnnualFee
+    }
+
+    fileprivate var engineFundType: CoastlineEngine.FundType {
+        switch self {
+        case .indexETF: .indexETF
+        case .mutualFund: .mutualFund
+        }
     }
 }
