@@ -178,7 +178,7 @@ private struct LoansStep: View {
 
         if draft.needsPrimeRate {
             Section {
-                NumberField("Prime rate (%)", text: $draft.primeRatePercent, prompt: "e.g. 4.95")
+                NumberField("Prime rate (%)", text: $draft.primeRatePercent, prompt: "e.g. 4.95", info: .primeRate)
             } footer: {
                 Text("Your lender's current prime rate. The projection keeps it at this number.")
             }
@@ -237,9 +237,14 @@ private struct LoanEditor: View {
                             keyboard: .numbersAndPunctuation
                         )
                     }
-                    Picker("Interest method", selection: $loan.interestMethod) {
-                        Text("Daily, added monthly").tag(Loan.InterestMethod.dailyAccrualMonthlyApplication)
-                        Text("Monthly").tag(Loan.InterestMethod.monthlyNominal)
+                    LabeledContent {
+                        Picker("Interest method", selection: $loan.interestMethod) {
+                            Text("Daily, added monthly").tag(Loan.InterestMethod.dailyAccrualMonthlyApplication)
+                            Text("Monthly").tag(Loan.InterestMethod.monthlyNominal)
+                        }
+                        .labelsHidden()
+                    } label: {
+                        InfoLabel("Interest method", info: .interestMethod)
                     }
                 }
 
@@ -307,13 +312,22 @@ private struct InvestmentsStep: View {
             Text("The total in your investment accounts today.")
         }
         Section {
-            Picker("Fund type", selection: $draft.fundType) {
-                Text("Choose").tag(FundType?.none)
-                Text(FundType.indexETF.title).tag(FundType?.some(.indexETF))
-                Text(FundType.mutualFund.title).tag(FundType?.some(.mutualFund))
+            LabeledContent {
+                Picker("Fund type", selection: $draft.fundType) {
+                    Text("Choose").tag(FundType?.none)
+                    Text(FundType.indexETF.title).tag(FundType?.some(.indexETF))
+                    Text(FundType.mutualFund.title).tag(FundType?.some(.mutualFund))
+                }
+                .labelsHidden()
+            } label: {
+                InfoLabel("Fund type", info: .fundType)
             }
             if let feeText {
-                LabeledContent("Fee", value: feeText)
+                LabeledContent {
+                    Text(feeText)
+                } label: {
+                    InfoLabel("Fee", info: .fee)
+                }
             }
         } footer: {
             Text("Fund type sets the starting yearly fee. You can change the fee later in Change assumptions.")
@@ -337,8 +351,8 @@ private struct GoalStep: View {
             Text("What you expect to spend each year in retirement, in today's dollars.")
         }
         Section {
-            NumberField("Withdrawal rate (%)", text: $draft.withdrawalRatePercent, prompt: "%")
-            NumberField("Inflation (%)", text: $draft.inflationPercent, prompt: "%")
+            NumberField("Withdrawal rate (%)", text: $draft.withdrawalRatePercent, prompt: "%", info: .withdrawalRate)
+            NumberField("Inflation (%)", text: $draft.inflationPercent, prompt: "%", info: .inflation)
         } header: {
             Text("Assumptions")
         } footer: {
@@ -421,19 +435,33 @@ private struct NumberField: View {
     @Binding var text: String
     let prompt: String
     let keyboard: UIKeyboardType
+    let info: AssumptionInfo?
 
-    init(_ title: String, text: Binding<String>, prompt: String, keyboard: UIKeyboardType = .decimalPad) {
+    init(
+        _ title: String,
+        text: Binding<String>,
+        prompt: String,
+        keyboard: UIKeyboardType = .decimalPad,
+        info: AssumptionInfo? = nil
+    ) {
         self.title = title
         _text = text
         self.prompt = prompt
         self.keyboard = keyboard
+        self.info = info
     }
 
     var body: some View {
-        LabeledContent(title) {
+        LabeledContent {
             TextField(prompt, text: $text)
                 .multilineTextAlignment(.trailing)
                 .keyboardType(keyboard)
+        } label: {
+            if let info {
+                InfoLabel(title, info: info)
+            } else {
+                Text(title)
+            }
         }
     }
 }

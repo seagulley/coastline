@@ -2,9 +2,14 @@
 
 Plain-language explanations for each editable assumption ([#9](https://github.com/seagulley/coastline/issues/9)). Each note says what the control means, then what happens to the Coast FIRE date when the value goes up or down.
 
-Wire these into Setup and Change assumptions when those screens exist. Until then this file is the copy only.
+The app shows this copy from `Coastline/UI/AssumptionInfo.swift`. Change a note in both places. The default numbers in the app's copy come from the plan and engine defaults.
 
-Change assumptions shows the return rates, prime, inflation, and fees. Withdrawal rate sits with the Coast FIRE goal. Risk tolerance and rising contributions still need a home on a screen; the copy is ready for either Setup or Change assumptions.
+Where each ⓘ appears:
+
+- Setup: prime rate and interest method (loans), fund type and fee (current investments), withdrawal rate and inflation (Coast FIRE goal).
+- Change assumptions: the three return rates, prime rate, inflation, fee, and risk tolerance.
+
+Contributions rise with inflation has no control on a screen yet. Its copy is ready for when one is added.
 
 Balances, ages, payment amounts, and other facts the user knows about themselves are not assumptions, so they are not in this draft.
 
