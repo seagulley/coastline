@@ -162,7 +162,9 @@ struct CompareView: View {
             choice = Choice(
                 summary: Self.splitSentence(share, mode: model.mode),
                 before: result.before,
-                after: result.after
+                after: result.after,
+                checklist: result.checklist,
+                loans: app.plan.loans
             )
             chooseError = nil
             showingChoice = true

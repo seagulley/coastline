@@ -114,6 +114,60 @@ final class PlanProjectionEngineTests: XCTestCase {
         XCTAssertNotEqual(engine.project(unset), engine.project(.starter))
     }
 
+    func testEveryMonthChecklistReadsTheFirstMonthsPaymentsForTheChosenSplit() {
+        let engine = PlanProjectionEngine(start: start)
+        let plan = UserPlan.starter.applyingLoanShare(planDecimal("0.5"), to: .everyMonth)
+
+        let checklist = try! XCTUnwrap(engine.checklist(plan, for: .everyMonth))
+
+        XCTAssertEqual(checklist.mode, .everyMonth)
+        XCTAssertEqual(checklist.month, start)
+        XCTAssertEqual(
+            checklist.loanPayments,
+            [ChecklistLoanPayment(loanID: plan.loans[0].id, minimum: 150, extra: 1000, total: 1150)]
+        )
+        XCTAssertEqual(checklist.investing, 1000)
+        XCTAssertTrue(checklist.investingRisesWithInflation)
+        XCTAssertEqual(checklist.fee, FeeAssumption(annualFee: planDecimal("0.002"), fundType: .indexETF, setByUser: true))
+    }
+
+    func testOneTimeChecklistSplitsOnlyTheLumpSum() {
+        let engine = PlanProjectionEngine(start: start)
+        var plan = UserPlan.starter
+        let lump = LumpSum(id: UUID(), amount: 3000, month: YearMonth(year: 2027, month: 4), loanShare: planDecimal("0.4"))
+        plan.money.lumpSums = [lump]
+
+        let checklist = try! XCTUnwrap(engine.checklist(plan, for: .lumpSum(id: lump.id)))
+
+        XCTAssertEqual(checklist.mode, .oneTime)
+        XCTAssertEqual(checklist.month, lump.month)
+        XCTAssertEqual(
+            checklist.loanPayments,
+            [ChecklistLoanPayment(loanID: plan.loans[0].id, minimum: 0, extra: 1200, total: 1200)]
+        )
+        XCTAssertEqual(checklist.investing, 1800)
+        XCTAssertNil(engine.checklist(plan, for: .lumpSum(id: UUID())))
+        XCTAssertNil(engine.checklist(.empty, for: .everyMonth))
+    }
+
+    func testChecklistFeeIsTheFundTypeDefaultUnlessTheUserSetOne() {
+        let engine = PlanProjectionEngine(start: start)
+        var plan = UserPlan.starter
+        plan.investments.fundType = .mutualFund
+        plan.assumptions.annualFee = nil
+
+        XCTAssertEqual(
+            engine.checklist(plan, for: .everyMonth)?.fee,
+            FeeAssumption(annualFee: planDecimal("0.02"), fundType: .mutualFund, setByUser: false)
+        )
+
+        plan.assumptions.annualFee = planDecimal("0.0035")
+        XCTAssertEqual(
+            engine.checklist(plan, for: .everyMonth)?.fee,
+            FeeAssumption(annualFee: planDecimal("0.0035"), fundType: .mutualFund, setByUser: true)
+        )
+    }
+
     private func savingPlan() -> UserPlan {
         var plan = UserPlan.empty
         plan.money.monthlyAmount = 100

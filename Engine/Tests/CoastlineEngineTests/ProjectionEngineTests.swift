@@ -612,6 +612,57 @@ final class ProjectionEngineTests: XCTestCase {
         XCTAssertEqual(Assumptions.defaultGoodAnnualReturn, decimal("0.10"))
     }
 
+    func testMonthPaymentsShowMinimumsThenExtraHighestRateFirstThenTheLumpSum() {
+        let later = YearMonth(year: 2027, month: 1)
+        let low = makeLoan(balance: 1000, rate: decimal("0.05"), minimum: 50, interestStart: later)
+        let high = makeLoan(balance: 300, rate: decimal("0.10"), minimum: 20, interestStart: later)
+        let lump = LumpSum(amount: 2000, month: start, loanShare: decimal("0.25"))
+        let result = project(
+            loans: [low, high],
+            monthlyAmount: 1000,
+            loanShare: decimal("0.5"),
+            growContributions: false,
+            lumpSums: [lump],
+            annualReturn: 0,
+            retirementAge: 31
+        )
+
+        XCTAssertEqual(result.snapshot(at: 0)?.payments, MonthPayments.none)
+        let january = try! XCTUnwrap(result.snapshot(at: 1))
+        XCTAssertEqual(
+            january.payments.loans,
+            [
+                LoanPayment(id: low.id, minimum: 50, extra: 220),
+                LoanPayment(id: high.id, minimum: 20, extra: 280),
+            ]
+        )
+        XCTAssertEqual(january.payments.invested, 500)
+        XCTAssertEqual(
+            january.payments.lumpSums,
+            [LumpSumPayment(id: lump.id, loans: [LoanAmount(id: low.id, amount: 500)], invested: 1500)]
+        )
+        XCTAssertEqual(january.nominal.balance(for: low.id), 230)
+        XCTAssertEqual(january.nominal.investments, 2000)
+    }
+
+    func testLoanMoneyWithNoLoanLeftIsCountedAsInvested() {
+        let lump = LumpSum(amount: 1000, month: start, loanShare: 1)
+        let result = project(
+            monthlyAmount: 100,
+            loanShare: 1,
+            growContributions: false,
+            lumpSums: [lump],
+            annualReturn: 0,
+            retirementAge: 31
+        )
+
+        let january = try! XCTUnwrap(result.snapshot(at: 1))
+        XCTAssertEqual(january.payments.loans, [])
+        XCTAssertEqual(january.payments.invested, 100)
+        XCTAssertEqual(january.payments.lumpSums, [LumpSumPayment(id: lump.id, loans: [], invested: 1000)])
+        XCTAssertEqual(january.nominal.investments, 1100)
+    }
+
     private func project(
         start: YearMonth? = nil,
         loans: [Loan] = [],

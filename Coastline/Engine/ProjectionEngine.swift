@@ -12,6 +12,9 @@ protocol ProjectionEngine: Sendable {
     /// The yearly market return, before fees, below which paying the loan beats investing.
     /// Nil when the plan cannot be projected or has no loan balance.
     func breakEvenReturn(_ plan: UserPlan) -> Decimal?
+    /// The payments behind `plan`'s split of `target`, for the after-choosing checklist.
+    /// Nil when the plan cannot be projected or does not contain the target lump sum.
+    func checklist(_ plan: UserPlan, for target: SplitTarget) -> ChoiceChecklist?
 }
 
 extension ProjectionEngine {
@@ -26,6 +29,40 @@ extension ProjectionEngine {
     func breakEvenReturn(_: UserPlan) -> Decimal? {
         nil
     }
+
+    func checklist(_: UserPlan, for _: SplitTarget) -> ChoiceChecklist? {
+        nil
+    }
+}
+
+/// Concrete steps for a chosen split. Amounts are the actual dollars to move in `month`.
+struct ChoiceChecklist: Equatable, Sendable {
+    var mode: AllocationMode
+    /// The first month of an every-month split, or the month of the one-time money.
+    var month: YearMonth
+    /// Loans that receive money, in the order the user entered them.
+    var loanPayments: [ChecklistLoanPayment]
+    /// Every month: the monthly amount to invest. One time: the part of the one-time money to invest.
+    var investing: Decimal
+    /// Every month only. The investing amount rises with inflation each year.
+    var investingRisesWithInflation: Bool
+    var fee: FeeAssumption
+}
+
+struct ChecklistLoanPayment: Equatable, Sendable {
+    var loanID: UUID
+    /// Zero for one-time money.
+    var minimum: Decimal
+    var extra: Decimal
+    var total: Decimal
+}
+
+/// The yearly fee the projection subtracts from returns.
+struct FeeAssumption: Equatable, Sendable {
+    var annualFee: Decimal
+    var fundType: FundType
+    /// False when the fee is the fund type's default.
+    var setByUser: Bool
 }
 
 /// Amounts for the current month, which are already in today's dollars.

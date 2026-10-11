@@ -103,14 +103,15 @@ final class AppModel {
     }
 
     /// Saves `plan` with `loanShare` applied to `target` and recorded as the chosen plan.
-    /// Only called after the user confirms the choice. Returns the projection from before and after.
+    /// Only called after the user confirms the choice. Returns the projection from before and after,
+    /// and the engine's checklist for the saved plan.
     @discardableResult
     func choose(
         loanShare: Decimal,
         for target: SplitTarget,
         in plan: UserPlan,
         at date: Date = Date()
-    ) throws -> (before: Projection, after: Projection) {
+    ) throws -> (before: Projection, after: Projection, checklist: ChoiceChecklist?) {
         let before = projection
         var chosen = plan.applyingLoanShare(loanShare, to: target)
         chosen.chosenPlan = ChosenPlan(
@@ -120,7 +121,7 @@ final class AppModel {
             lumpSumID: target.lumpSumID
         )
         try apply(chosen)
-        return (before, projection)
+        return (before, projection, engine.checklist(chosen, for: target))
     }
 
     /// Saves assumptions the user changed in Change assumptions. The rest of the saved plan stays as it is.

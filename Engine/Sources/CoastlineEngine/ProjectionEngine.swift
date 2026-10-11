@@ -154,7 +154,8 @@ public enum ProjectionEngine {
                 month: month.month,
                 nominal: nominal,
                 today: today,
-                interestAccrued: month.interestAccrued
+                interestAccrued: month.interestAccrued,
+                payments: month.payments
             )
         }
         return (snapshots, coastFireDate)

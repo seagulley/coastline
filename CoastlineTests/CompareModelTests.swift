@@ -105,7 +105,69 @@ final class CompareModelTests: XCTestCase {
             ChosenPlan(mode: .oneTime, loanShare: planDecimal("0.6"), chosenAt: chosenAt, lumpSumID: lump.id)
         )
         XCTAssertEqual(result.after, app.projection)
+        XCTAssertEqual(result.checklist, app.engine.checklist(saved, for: target))
+        XCTAssertEqual(result.checklist?.mode, .oneTime)
         XCTAssertFalse(app.usingStarterPlan)
+    }
+
+    func testChecklistStepsNameEachPaymentFromTheEngine() {
+        let named = Loan(
+            id: UUID(),
+            name: "Student loan",
+            balance: 8000,
+            disbursement: .afterJuly12023,
+            rate: .fixed(annualRate: planDecimal("0.05")),
+            interestStart: nil,
+            minimumPayment: 150,
+            repaymentTermMonths: nil,
+            interestMethod: .dailyAccrualMonthlyApplication
+        )
+        var unnamed = named
+        unnamed.id = UUID()
+        unnamed.name = nil
+        let fee = FeeAssumption(annualFee: planDecimal("0.002"), fundType: .indexETF, setByUser: false)
+        let everyMonth = ChoiceChecklist(
+            mode: .everyMonth,
+            month: start,
+            loanPayments: [
+                ChecklistLoanPayment(loanID: named.id, minimum: 150, extra: 600, total: 750),
+                ChecklistLoanPayment(loanID: unnamed.id, minimum: 150, extra: 0, total: 150),
+            ],
+            investing: 1400,
+            investingRisesWithInflation: true,
+            fee: fee
+        )
+
+        XCTAssertEqual(
+            AfterChoosingView.steps(everyMonth, loans: [named, unnamed]),
+            [
+                "Pay $750.00 a month on Student loan: the $150.00 minimum plus $600.00 extra.",
+                "Pay the $150.00 minimum on loan 2 each month.",
+                "Invest $1,400.00 a month in your index ETF, such as in a TFSA. Raise it with inflation each year.",
+            ]
+        )
+
+        let oneTime = ChoiceChecklist(
+            mode: .oneTime,
+            month: YearMonth(year: 2027, month: 4),
+            loanPayments: [ChecklistLoanPayment(loanID: unnamed.id, minimum: 0, extra: 1200, total: 1200)],
+            investing: 1800,
+            investingRisesWithInflation: false,
+            fee: fee
+        )
+        XCTAssertEqual(
+            AfterChoosingView.steps(oneTime, loans: [unnamed]),
+            [
+                "In April 2027, put $1,200.00 of the one-time money toward your loan.",
+                "In April 2027, invest $1,800.00 of the one-time money in your index ETF, such as in a TFSA.",
+            ]
+        )
+
+        XCTAssertEqual(AfterChoosingView.feeText(fee), "0.20%, index ETF default")
+        var setFee = fee
+        setFee.annualFee = planDecimal("0.0035")
+        setFee.setByUser = true
+        XCTAssertEqual(AfterChoosingView.feeText(setFee), "0.35%, set by you")
     }
 
     func testChoosingEveryMonthSavesTheSplit() throws {
@@ -144,5 +206,9 @@ private final class TargetRecordingEngine: ProjectionEngine, @unchecked Sendable
     func recommend(_ plan: UserPlan, for target: SplitTarget) -> SplitRecommendation? {
         lock.withLock { recorded.append((plan, target)) }
         return engine.recommend(plan, for: target)
+    }
+
+    func checklist(_ plan: UserPlan, for target: SplitTarget) -> ChoiceChecklist? {
+        engine.checklist(plan, for: target)
     }
 }
